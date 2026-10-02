@@ -48,6 +48,11 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn('多 Agent 不默认强制',skill)
         for required in ('委派合同','子问题','检索层','来源范围','不做什么','写入哪个日志','预算'):
             self.assertIn(required,skill)
+    def test_skill_requires_explicit_v2_on_every_new_record(self):
+        # Default checker mode accepts a row without schema_version as legacy V1, so the rule must stay in SKILL.md.
+        skill=(ROOT/'SKILL.md').read_text()
+        self.assertIn('`schema_version: 2`',skill)
+        self.assertIn('增量追加',skill)
     def test_discovery_and_review_guidance_are_distinct_without_quality_certification(self):
         guide=ROOT/'references/field-discovery.md';self.assertTrue(guide.exists())
         text=guide.read_text()
