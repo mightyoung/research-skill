@@ -79,7 +79,7 @@ description: Use when entering a research field, mapping its frontier, finding d
 - 上游纪律：效果变好先查数据泄漏；核对中间处理；每版实验命名并保留失败；按固定 evaluation 测评；用领域标准术语。
 
 **校验、审查与交接**
-- 运行 `python3 "<skill root>/scripts/check-research.py" "<project root>"`；增量变更后加 `--mark-review`；新项目加 `--strict-v2` 检查当前活跃记录已迁移到 V2（格式见 evidence schema）。旧 V1 记录只做兼容并提示，迁移不自动补真。
+- 运行 `python3 "<skill root>/scripts/check-research.py" "<project root>"`；增量变更后加 `--mark-review`；新项目加 `--strict-v2` 检查当前活跃记录已迁移到 V2（格式见 evidence schema）。每条新写入的记录（含向旧项目增量追加的新 ID）都显式写 `schema_version: 2`：默认模式把缺省版本当 V1 只提示放行，会绕过全部 V2 契约。旧 V1 记录只做兼容并提示，迁移不自动补真。
 - 生成与审查按需分开：从同一原始材料独立形成判断再汇总，不用共享结论制造共识；多 Agent 不默认强制。
 - 确需委派时，每个子任务写委派合同：目标/对应brief子问题、负责的检索层、来源范围与可信度要求、不做什么（防重复和漂移）、输出写入哪个日志（searches记subq）、预算；子任务只交证据与缺口，判断由主流程汇总。
 - 交接核对输入/产物 hash 和状态；窗口结束主动更新 handoff。
