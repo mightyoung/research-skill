@@ -38,6 +38,13 @@ class DeliverableTraceTests(TraceBase):
  def test_symlinked_deliverable_refused(self):
   outside=Path(self.tmp.name+'-outside.md');outside.write_text('[claims/c9@1]\n');self.addCleanup(outside.unlink)
   (self.project/'LINK.md').symlink_to(outside);r=self.check(sample());self.assertNotEqual(r.returncode,0);self.assertIn('symlink',r.stdout)
+ def test_symlinked_experiment_directory_refused_without_external_citation_read(self):
+  outside=Path(self.tmp.name+'-external');outside.mkdir();self.addCleanup(lambda:outside.rmdir())
+  report=outside/'results.md';report.write_text('[claims/privateoutside@1]\n');self.addCleanup(report.unlink)
+  (self.project/'experiment').symlink_to(outside,target_is_directory=True)
+  result=self.check(sample());self.assertNotEqual(result.returncode,0,result.stdout)
+  self.assertIn('symlink',result.stdout)
+  self.assertNotIn('privateoutside',result.stdout)
  def test_mark_review_not_blocked_by_deliverable_errors(self):
   d=sample();newer=copy.deepcopy(d['claims'][0]);newer.update(rev=2);d['claims'].append(newer)
   self.report('[claims/c9@1]\n');r=self.check(d,'--mark-review');self.assertNotEqual(r.returncode,0)
