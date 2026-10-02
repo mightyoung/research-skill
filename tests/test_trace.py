@@ -53,7 +53,7 @@ class ExperimentProvenanceTests(TraceBase):
   out=self.project/'experiment/runs/run1/metrics.json';out.parent.mkdir(parents=True);out.write_text('{"acc": 0.51}\n')
   return {'code':{'repo':'experiment','commit':'a'*40},'command':'python3 train.py --seed 1','environment':{'path':'env/requirements.lock','sha256':sha(env)},'outputs':[{'path':'experiment/runs/run1/metrics.json','sha256':sha(out)}]}
  def data(self,run):
-  d=bundle();d['experiments']=[plan(),run];return d
+  p=plan();p['approval']={'by':'PI','at':STAMP,'scope':'1 CPU-hour'};d=bundle();d['experiments']=[p,run];return d
  def test_traceable_run_passes_strict(self):
   r=self.check(self.data(self.run_row(provenance=self.provenance())),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout);self.assertIn('local binding matched: experiment/runs/run1/metrics.json',r.stdout)
  def test_changed_output_makes_run_stale(self):

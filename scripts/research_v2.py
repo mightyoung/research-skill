@@ -12,6 +12,11 @@ COMMIT=re.compile(r'^[0-9a-f]{7,64}$')
 TEXT_LIMIT=16*1024*1024
 FILE_LIMIT=128*1024*1024
 
+def when(x):return dt.datetime.fromisoformat(x.replace('Z','+00:00'))
+def approval_ok(value):
+ # Declared human approval; the script cannot verify who approved or that they did.
+ return isinstance(value,dict) and set(value)=={'by','at','scope'} and text(value.get('by')) and stamp(value.get('at')) and text(value.get('scope'))
+
 def text(x): return isinstance(x,str) and bool(x.strip())
 def strings(x,nonempty=True): return isinstance(x,list) and (bool(x) or not nonempty) and all(text(v) for v in x)
 def number(x): return type(x) in (int,float) and math.isfinite(x) and x>=0
@@ -199,6 +204,7 @@ def validate_record(project,kind,row,history,current,strict=False):
    if actual.get('discriminating') is False and actual.get('result')!='inconclusive':fail('non-discriminating result must be inconclusive, not refuting/supporting')
    if actual.get('execution_state') not in ('completed','technical_failure'):fail('actual execution_state required')
    if actual.get('execution_state')=='technical_failure' and actual.get('result')!='inconclusive':fail('technical failure cannot refute hypothesis')
+   approval_gate(row,p,actual,current,strict,fail,notes)
    if 'provenance' in actual:provenance(actual['provenance'])
    elif actual.get('execution_state')=='completed' and current and row.get('active') is not False:
     if strict:fail('strict-v2 completed run requires actual.provenance (code/command/environment/outputs)')
@@ -262,3 +268,15 @@ def discrimination(row,fail):
  if not strings(row.get('leakage_risks'),False) or not strings(row.get('stop_conditions')):fail('leakage risks and stop conditions required')
  b=row.get('budget');b=b if isinstance(b,dict) else {}
  if not number(b.get('limit')) or not text(b.get('unit')):fail('experiment budget required')
+ if 'approval' in row and not approval_ok(row['approval']):fail('approval requires exactly by/at/scope (declared, not verified)')
+
+def approval_gate(row,plan,actual,current,strict,fail,notes):
+ """Plan-before-spend: execution needs prior approval; overruns need their own approval."""
+ def soft(message):
+  if current and row.get('active') is not False:(fail if strict else notes.append)(message)
+ approval=plan.get('approval')
+ if approval is None:soft('executed run has no recorded approval on its pinned plan')
+ elif approval_ok(approval) and stamp(actual.get('executed_at')) and when(approval['at'])>when(actual['executed_at']):fail('approval must be recorded before execution')
+ if 'overrun_approval' in actual and not approval_ok(actual['overrun_approval']):fail('overrun_approval requires exactly by/at/scope (declared, not verified)')
+ limit=plan.get('budget',{}).get('limit') if isinstance(plan.get('budget'),dict) else None
+ if number(limit) and number(actual.get('budget_spent')) and actual['budget_spent']>limit and 'overrun_approval' not in actual:soft(f'budget overrun ({actual["budget_spent"]}>{limit}) without overrun_approval')
