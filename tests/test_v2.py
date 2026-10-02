@@ -39,6 +39,10 @@ class V2Tests(unittest.TestCase):
    for row in d['searches']:
     row.update(status=state,returned_count=0,total_hits=None);row['pagination'].update(state='incomplete',fetched_pages=0)
    r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('search',r.stdout)
+ def test_optional_subquestion_tag(self):
+  d=bundle();d['searches'][0]['subq']='sq2';r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout+r.stderr)
+  for bad in ('',' ',2,['sq1']):
+   d=bundle();d['searches'][0]['subq']=bad;r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('subq',r.stdout)
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)
