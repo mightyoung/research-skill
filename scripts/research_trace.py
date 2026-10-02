@@ -13,10 +13,13 @@ COMMENT=re.compile(r'<!--.*?-->',re.S)
 TEXT_LIMIT=16*1024*1024
 
 def deliverables(project):
- return sorted(project.glob('*.md'))+sorted(project.glob('experiment/*.md'))
+ experiment=project/'experiment'
+ # Refuse a linked directory before traversing it, not just linked leaf files.
+ return sorted(project.glob('*.md'))+(sorted(experiment.glob('*.md')) if not experiment.is_symlink() else [])
 
 def trace(project,latest,stale):
  errors=[];notes=[]
+ if (project/'experiment').is_symlink():errors.append('experiment: symlink deliverable directory refused')
  for path in deliverables(project):
   name=path.relative_to(project).as_posix()
   if path.is_symlink():errors.append(f'{name}: symlink deliverable refused');continue
