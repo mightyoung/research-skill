@@ -1,0 +1,6 @@
+{"schema_version": 2, "id": "s-survey", "rev": 1, "updated_at": "2026-10-01T12:00:00Z", "url": "https://example.invalid/synthetic/survey", "retrieved_at": "2026-10-01T12:00:00Z", "status": "active"}
+{"schema_version": 2, "id": "s-classic", "rev": 1, "updated_at": "2026-10-01T12:00:00Z", "url": "https://example.invalid/synthetic/classic", "retrieved_at": "2026-10-01T12:00:00Z", "status": "active"}
+{"schema_version": 2, "id": "s-baseline", "rev": 1, "updated_at": "2026-10-01T12:00:00Z", "url": "https://example.invalid/synthetic/baseline", "retrieved_at": "2026-10-01T12:00:00Z", "status": "active"}
+{"schema_version": 2, "id": "s-recent", "rev": 1, "updated_at": "2026-10-01T12:00:00Z", "url": "https://example.invalid/synthetic/recent", "retrieved_at": "2026-10-01T12:00:00Z", "status": "active"}
+{"schema_version": 2, "id": "s-negative", "rev": 1, "updated_at": "2026-10-01T12:00:00Z", "url": "https://example.invalid/synthetic/negative", "retrieved_at": "2026-10-01T12:00:00Z", "status": "active"}
+{"schema_version": 2, "id": "s-recent-v2", "rev": 1, "updated_at": "2026-10-01T12:00:00Z", "url": "https://example.invalid/synthetic/recent", "retrieved_at": "2026-10-01T12:00:00Z", "status": "active"}

@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/skJack/research-workflow",
+  "commit": "14c882df49a7991b9833f2ff416e4dfd38668827",
+  "files_sha256": {
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "README.md": "72e0ebb85b9fae6f156cf515b227a94030b55f81473c6e383a729f5de172625c",
+    ".gitignore": "1cff027141454ac06f1f397303753d5ccc3758ec579f9319fab6c38ce3834aa0",
+    "SKILL.md": "edb74cb2410817cef6469f9633e9663ac5f6eeb48bd49eb240f3f3b646f89000",
+    "scripts/init-project.sh": "05521ec0f793155700870cb422f78f117729cdc7c293205633af2495fee93704",
+    "scripts/fetch-paper.sh": "cc1f8bdfaab1f73ec9038a72a1983af3551a8327fd350d538de0435043ca5213",
+    "assets/templates/dataset.md": "11571d1acb8e454ef53dad8ee25a0b9d06393c033cd97c1fcc669249f537c2fe",
+    "assets/templates/results.md": "e51c6fe1f258e539bf34b8330035b01ed9f11ac1f549900027ac672b4bff7c05",
+    "assets/templates/AGENTS.md": "c67a5cddc99bf7a8a46ee968f25c86832122f2c3a5ea8aed79c57e5e0199207c",
+    "assets/templates/handoff.md": "101cd58e1b9428ec0ab9bcf611ddbda5073a182bf95810755abdf68572e5c359",
+    "assets/templates/brainstorm.md": "14aa23a706c9c86a02564f5b0b4ad918e52a06efacc290262bafec3da4a5a772",
+    "assets/templates/evaluation.md": "06e2e61ce3cfd27580c97d3443886188f076356184cef1a7967e931035ad620b"
+  },
+  "local_schema_version": 2,
+  "local_revision": "2026-10-02-v6.2-critical-reading"
+}
