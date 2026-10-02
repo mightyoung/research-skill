@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 EXTRA_KINDS=('searches','tensions','experiments','failures','handoffs')
 LAYERS={'review','foundational','strong_baseline','recent','negative_results','countersearch'}
 HASH=re.compile(r'^[0-9a-f]{64}$')
+COMMIT=re.compile(r'^[0-9a-f]{7,64}$')
 TEXT_LIMIT=16*1024*1024
 FILE_LIMIT=128*1024*1024
 
@@ -66,7 +67,7 @@ def refs(kind,row):
  if kind=='failures':many('evidence')
  return result
 
-def validate_record(project,kind,row,history,current):
+def validate_record(project,kind,row,history,current,strict=False):
  errors=[];notes=[];stale=False
  def fail(message):errors.append(message)
  if 'review_status' in row and row['review_status'] not in ('current','needs_review'):fail('invalid review_status')
@@ -102,6 +103,17 @@ def validate_record(project,kind,row,history,current):
    state=file_state(project,value,excerpt)
    notes.append(f'local binding {state}: {value.get("path")} (byte/substring provenance only)')
    if state!='matched':stale=True
+ def provenance(value):
+  # Declared code identity plus byte bindings; never proof that the command actually produced the outputs.
+  if not isinstance(value,dict) or set(value)-{'code','command','environment','outputs'}:fail('invalid provenance; caller status/verified cannot certify a run');return
+  code=value.get('code');code=code if isinstance(code,dict) else {}
+  if not text(code.get('repo')) or not isinstance(code.get('commit'),str) or not COMMIT.fullmatch(code['commit']):fail('provenance code requires repo and hex commit (declared, not verified)')
+  if not text(value.get('command')):fail('provenance command required')
+  outputs=value.get('outputs')
+  if not isinstance(outputs,list) or not outputs:fail('provenance outputs require at least one binding');outputs=[]
+  start=len(errors)
+  for item in [value.get('environment'),*outputs]:binding(item)
+  errors[start:]=[f'provenance {message}' for message in errors[start:]]
  if kind=='sources':
   if 'material_binding' in row:binding(row['material_binding'])
   if 'acquisition_manifest_binding' in row:binding(row['acquisition_manifest_binding'])
@@ -187,6 +199,10 @@ def validate_record(project,kind,row,history,current):
    if actual.get('discriminating') is False and actual.get('result')!='inconclusive':fail('non-discriminating result must be inconclusive, not refuting/supporting')
    if actual.get('execution_state') not in ('completed','technical_failure'):fail('actual execution_state required')
    if actual.get('execution_state')=='technical_failure' and actual.get('result')!='inconclusive':fail('technical failure cannot refute hypothesis')
+   if 'provenance' in actual:provenance(actual['provenance'])
+   elif actual.get('execution_state')=='completed' and current and row.get('active') is not False:
+    if strict:fail('strict-v2 completed run requires actual.provenance (code/command/environment/outputs)')
+    else:notes.append('completed run not traceable: add actual.provenance with code commit, command, environment and output bindings')
  elif kind=='failures':
   enum('failure_type',{'technical','non_discriminating','hypothesis_refuted','resource_infeasible'})
   require_string('cause');require_string('generalization_scope')

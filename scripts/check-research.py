@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from research_trace import trace
 from research_v2 import EXTRA_KINDS, refs as v2_refs, validate_record
 BASE_KINDS=('sources','papers','claims','opportunities')
 KINDS=BASE_KINDS+EXTRA_KINDS
@@ -83,7 +84,7 @@ def validate(root,strict_v2=False):
     notes.append(f'{label}: legacy schema v1 compatibility; V2 contracts NOT checked')
     if strict_v2:error(label,'strict-v2 requires explicit migrated active snapshot')
   else:
-   v2_errors,v2_notes,local_stale=validate_record(root.parent,kind,row,history,latest[(kind,rid)] is row)
+   v2_errors,v2_notes,local_stale=validate_record(root.parent,kind,row,history,latest[(kind,rid)] is row,strict_v2)
    for message in v2_errors:error(label,message)
    notes.extend(f'{label}: {message}' for message in v2_notes)
    if local_stale:extra_stale.add((kind,rid))
@@ -236,6 +237,8 @@ def main():
     # Never mutate structurally invalid journals; freshness diagnostics alone are safe.
     if all('needs_review:' in e for e in errors): mark_review(root,latest,stale)
   else: errors,latest,stale,independent,notes=validate(root,args.strict_v2)
+  # Deliverable citations are checked after any marking so report typos never block journal review.
+  trace_errors,trace_notes=trace(args.project,latest,stale);errors+=trace_errors;notes+=trace_notes
  except (OSError,ValueError,TypeError) as e: parser.exit(1,f'validation could not complete: {e}\n')
  print(f'structure/freshness only; independent_works={independent}; records={len(latest)}')
  for note in notes: print(note)

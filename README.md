@@ -31,6 +31,8 @@ python3 <skill>/scripts/check-research.py <skill>/examples/v2-case/update --stri
 
 可读合成案例：`examples/v2-case/{discover,review,update}/REPORT.md`，原始包 `raw-materials.md`。全部材料虚构，展示进入领域到筛选、更新，**不是实际领域研究或实时查新**，判别实验没有执行。
 
+交付物追溯：项目根 `*.md` 与 `experiment/*.md` 用 `[kind/id@rev]` 引用日志，引用不存在或陈旧即 FAIL，未引用的小数/百分比提示 untraced number；已执行实验可写 `actual.provenance`（代码 commit、命令、环境与输出 hash 绑定），`--strict-v2` 对 completed 实验必需。实现见 `scripts/research_trace.py`。
+
 仅新增小模块 `scripts/research_v2.py`，由 check-research 内部调用，不是下载器或商业搜索器。无账号、联网搜索自动化和额外依赖。生成与审查按需分开；等预算评估模板没有执行结果，不宣称提高研究质量。哈希只标识字节一致性，不是不可抵赖真伪证明。
 
 ## 本地使用与依赖

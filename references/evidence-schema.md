@@ -77,12 +77,16 @@ claim 示例：
 | tensions | tension_type:conflict/anomaly/repeated_failure/access_bottleneck/observation_bottleneck/measurement_bottleneck；observation；evidence:[{kind,id,rev}]；alternative_explanations；importance；why_now:{kind:tool/data/conditions,reason}；attackability:{status:actionable/parked/unknown,path 或 reason} |
 | opportunities | search_refs:[{id,rev}]；tension_refs:[{id,rev}]；novelty:provisional/unknown/covered；critical_unknown；decision:continue/revise/park/abandon；change_decision_if；next_search:{query,priority:strongest_falsifier/coverage_gap,budget,state:planned/complete/exhausted/unresolved,unresolved:true（耗尽时）}；importance、why_now、attackability；ready 需要 experiment_plan |
 | experiments（计划） | phase=planned；opportunity:{id,rev} 可选；observation/explanation/strongest_rival；baseline_sufficiency:{possible:boolean,rationale}；predictions:[{condition,own,rival}]；controls:{task_type,items,rationale}；unit/metric/uncertainty/discrimination_limit（有意义阈值或边界、所需精度与不具辨别力条件）；leakage_risks；budget:{limit,unit}；stop_conditions |
-| experiments（实测） | phase=executed；plan_ref:{id,rev}；actual:{executed_at,measured_values:[有限数字],result:supporting/refuting/inconclusive,discriminating:boolean,reason,budget_spent,execution_state:completed/technical_failure} |
+| experiments（实测） | phase=executed；plan_ref:{id,rev}；actual:{executed_at,measured_values:[有限数字],result:supporting/refuting/inconclusive,discriminating:boolean,reason,budget_spent,execution_state:completed/technical_failure,provenance?}；provenance:{code:{repo,commit(7–64位hex)},command,environment:{path,sha256},outputs:[{path,sha256}]≥1}，completed 缺失时提示不可追溯、--strict-v2 当前快照必需；commit 只是声明，脚本不运行 git，绑定文件改变使该实验及依赖待复核 |
 | failures | failure_type:technical/non_discriminating/hypothesis_refuted/resource_infeasible；cause；conditions:{data,scale,evaluation,method_version}；evidence:[{kind,id,rev}]；generalization_scope；reopen_conditions |
 | handoffs | step；step_state:planned/in_progress/completed/needs_review；inputs/outputs:[{path,sha256}]；pending_questions；invalidation_reasons；completed 必须有输入和产物绑定，摘要自报完成不可替代 |
 
 计数指该来源返回的记录，非去重后独立作品数；独立作品仍按 work_id。exhaustive 只允许有总数与分页能力、已完成有界查询且计数一致，不代表整个领域穷尽。access_failed/unavailable/incomplete 必须 coverage_claim=unknown。预算上限与耗尽状态如实记录，不可标成搜索已解决。
 V2 ready 必须满足第一版关卡，支持证据为 V2 非 hypothesis、material_access=available、page/structure 定位声明，六检索层均有完成且非零的引用；仍只是可进入计划/核验阶段的声明契约。
+
+## 交付物引用追溯
+
+项目根目录 `*.md` 与 `experiment/*.md` 中的数字和结论用 `[kind/id@rev]` 引用日志记录，如 `[claims/c3@2]`、`[experiments/run1@1]`。校验器报错：引用不存在、版本不是最新、目标待复核或已退役；含小数/百分比却无引用的行只提示 untraced number。代码块与 HTML 注释跳过，拒绝 symlink。交付物错误在 `--mark-review` 标记之后检查，不阻断日志复核。只检查引用可解析与新鲜，不检查被引记录是否支持该句。
 
 ## 可选本地摘录与 hash 绑定
 

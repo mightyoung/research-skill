@@ -51,6 +51,7 @@ C 少量候选方向（最近似工作、差异、资源门槛、最小验证、
 计划与实测分开，低辨别力阴性属于不确定；失败保留条件与重开条件。交接核对输入/产物 hash 和状态。
 生成与审查按需分开，从同一原始材料独立形成判断再汇总，不用共享结论制造共识；多 Agent 不默认强制。
 
+报告与 `experiment/*.md` 中的数字和结论用 `[kind/id@rev]` 引用日志记录；已执行实验在 `actual.provenance` 绑定代码 commit、命令、环境和输出 hash。
 执行 `python3 "<skill root>/scripts/check-research.py" "<project root>"`；增量变更后用 `--mark-review`。
 新项目用 `--strict-v2` 检查当前活跃记录迁移，格式详见 evidence schema。
 校验只验证结构、声明的状态、可选本地字节/摘录绑定和依赖新鲜度；内容真伪、检索充分性、排名由 Agent 审查。
