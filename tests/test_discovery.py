@@ -44,6 +44,10 @@ class DiscoveryTests(unittest.TestCase):
         for required in ('问题形状','先宽后窄','subq'):
             self.assertIn(required,guide)
         self.assertIn('subq',(ROOT/'references/evidence-schema.md').read_text())
+        skill=(ROOT/'SKILL.md').read_text()
+        self.assertIn('多 Agent 不默认强制',skill)
+        for required in ('委派合同','子问题','检索层','来源范围','不做什么','写入哪个日志','预算'):
+            self.assertIn(required,skill)
     def test_discovery_and_review_guidance_are_distinct_without_quality_certification(self):
         guide=ROOT/'references/field-discovery.md';self.assertTrue(guide.exists())
         text=guide.read_text()

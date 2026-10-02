@@ -51,6 +51,7 @@ C 少量候选方向（最近似工作、差异、资源门槛、最小验证、
 计划与实测分开，低辨别力阴性属于不确定；失败保留条件与重开条件。交接核对输入/产物 hash 和状态。
 生成与审查按需分开，从同一原始材料独立形成判断再汇总，不用共享结论制造共识；多 Agent 不默认强制。交付物完成、标 ready、请求实验批准、写入实测和交接完成前，按 [reviewer](references/reviewer.md) 清单审查。
 已执行实验须引用带 `approval:{by,at,scope}` 的计划（批准早于执行，由人填写）；超出计划预算另需 `overrun_approval`，否则提示，`--strict-v2` 报错。
+确需委派时，每个子任务写委派合同：目标/对应brief子问题、负责的检索层、来源范围与可信度要求、不做什么（防重复和漂移）、输出写入哪个日志（searches记subq）、预算；子任务只交证据与缺口，判断由主流程汇总。
 
 报告与 `experiment/*.md` 中的数字和结论用 `[kind/id@rev]` 引用日志记录；已执行实验在 `actual.provenance` 绑定代码 commit、命令、环境和输出 hash。
 执行 `python3 "<skill root>/scripts/check-research.py" "<project root>"`；增量变更后用 `--mark-review`。
