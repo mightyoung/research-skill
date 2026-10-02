@@ -122,7 +122,6 @@ def validate_record(project,kind,row,history,current,strict=False):
   if 'identity_verified' in row and type(row['identity_verified'])!=bool:fail('identity_verified must be boolean declaration; never certified by script')
  elif kind=='searches':
   require_string('query');enum('layer',LAYERS)
-  if 'subq' in row and not text(row['subq']):fail('subq must be nonempty string naming a brief sub-question')
   if not stamp(row.get('searched_at')):fail('searched_at requires timezone')
   bounds=obj('time_range')
   try:
