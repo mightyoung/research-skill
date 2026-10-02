@@ -2,9 +2,15 @@
 
 README 只保留当前用法；各版本的改动说明与验证记录按原文移到这里。
 
-## 查询分析与委派合同（#6）
+## V6.5 查询分析与委派合同
 
-借鉴 Claude Research 的查询分析：research-brief 增加问题形态（straightforward/breadth/depth）、子问题拆分、术语变体、投入档位、饱和停止与先宽后窄的检索；searches.jsonl 可选 `subq` 标签（非空字符串）。确需委派时，每个子任务写委派合同（目标/子问题、检索层、来源范围、排除项、写入日志、预算），子任务只交证据与缺口，判断由主流程汇总。
+查询分析与委派合同（#6）：借鉴 Claude Research 的查询分析：research-brief 增加问题形态（straightforward/breadth/depth）、子问题拆分、术语变体、投入档位、饱和停止与先宽后窄的检索；searches.jsonl 可选 `subq` 标签（非空字符串）。确需委派时，每个子任务写委派合同（目标/子问题、检索层、来源范围、排除项、写入日志、预算），子任务只交证据与缺口，判断由主流程汇总。
+
+结构整理（#7）：check-research 的 validate 按职责拆分为辅助函数，行为不变；SKILL.md 与 README 重排，版本历史移到本文件。
+
+规则补回（#8）：重排时遗漏的“每条新写入记录（含向旧项目增量追加的新 ID）显式 `schema_version: 2`”补回 SKILL.md；默认模式把缺省版本当 V1 只提示放行，会绕过 V2 契约。
+
+无新必填日志或依赖；`subq` 为可选字段。150 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过；结构校验不认证研究质量。
 
 ## V6.4 定向自查
 

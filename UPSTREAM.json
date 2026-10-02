@@ -16,5 +16,5 @@
     "assets/templates/evaluation.md": "06e2e61ce3cfd27580c97d3443886188f076356184cef1a7967e931035ad620b"
   },
   "local_schema_version": 2,
-  "local_revision": "2026-10-02-v6.4-targeted-gates"
+  "local_revision": "2026-10-02-v6.5-query-analysis"
 }
