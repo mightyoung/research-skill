@@ -33,6 +33,21 @@ class DiscoveryTests(unittest.TestCase):
             before={str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()}
             p=subprocess.run(cmd,capture_output=True,text=True);self.assertEqual(p.returncode,0,p.stderr)
             self.assertEqual(before,{str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()})
+    def test_brief_carries_query_analysis_plan_and_landscape_uses_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp).resolve()/'project'
+            p=subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(root)],capture_output=True,text=True);self.assertEqual(p.returncode,0,p.stderr)
+            brief=(root/'research-brief.md').read_text()
+        for required in ('## 查询分析','问题形状','直接型','横向型','纵深型','术语变体','子问题','检索预算档','停止条件'):
+            self.assertIn(required,brief)
+        guide=(ROOT/'references/landscape.md').read_text()
+        for required in ('问题形状','先宽后窄','subq'):
+            self.assertIn(required,guide)
+        self.assertIn('subq',(ROOT/'references/evidence-schema.md').read_text())
+        skill=(ROOT/'SKILL.md').read_text()
+        self.assertIn('多 Agent 不默认强制',skill)
+        for required in ('委派合同','子问题','检索层','来源范围','不做什么','写入哪个日志','预算'):
+            self.assertIn(required,skill)
     def test_discovery_and_review_guidance_are_distinct_without_quality_certification(self):
         guide=ROOT/'references/field-discovery.md';self.assertTrue(guide.exists())
         text=guide.read_text()
