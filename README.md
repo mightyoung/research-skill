@@ -31,6 +31,9 @@ python3 <skill>/scripts/check-research.py <skill>/examples/v2-case/update --stri
 
 可读合成案例：`examples/v2-case/{discover,review,update}/REPORT.md`，原始包 `raw-materials.md`。全部材料虚构，展示进入领域到筛选、更新，**不是实际领域研究或实时查新**，判别实验没有执行。
 
+交付物追溯：项目根 `*.md` 与 `experiment/*.md` 用 `[kind/id@rev]` 引用日志，引用不存在或陈旧即 FAIL，未引用的小数/百分比提示 untraced number；已执行实验可写 `actual.provenance`（代码 commit、命令、环境与输出 hash 绑定），`--strict-v2` 对 completed 实验必需。实现见 `scripts/research_trace.py`。
+审查与批准：固定时机与清单见 [reviewer](references/reviewer.md)；已执行实验须引用带人工 `approval` 的计划，超预算另需 `overrun_approval`（缺失提示，`--strict-v2` 报错）。
+
 仅新增小模块 `scripts/research_v2.py`，由 check-research 内部调用，不是下载器或商业搜索器。无账号、联网搜索自动化和额外依赖。生成与审查按需分开；等预算评估模板没有执行结果，不宣称提高研究质量。哈希只标识字节一致性，不是不可抵赖真伪证明。
 
 ## 本地使用与依赖
@@ -145,3 +148,7 @@ V6.1 在原路径按条件融入[工程与跨域思考](references/transfer-and-
 MVP 不含数据库、向量库、调度监控或外部 API 账户。JSONL 写入仍由 Agent/人工完成；下载 manifest 不自动等于已阅读。
 内容真伪和科学质量无法由格式校验认证。身份迁移和复杂 DOI 关联需人工处理；全项目校验是保守的。
 不会自动跑复现代码，真正的复现/实验另需审查目标代码、环境和资源。
+
+V6.3基于真实装配研究的有界复查，在既有问题构造与候选卡补充可执行变量/一步更新/配对行为例，以及能改变去留的关键条件小核查。无新schema、依赖或自动科学认证；未取得视频/目标真值保持candidate，标注一致性探查不算科学实测。提示词：“先说明候选怎样逐步判断，核最强近邻已有能力，再用公开材料检查关键条件是否出现；不能测目标就停止或收窄，不强迫留3个方向。”同材料前后交付和真实访问边界在工作区verification/v6.3，研究质量改善不是离线测试通过即可证明。
+
+V6.4定向自查短补：经典任务定义需正文定位，缺失降低严格入门验收；装配trial统计单位与triplet条件切片分开；真值缺失、负预测拒绝及弃权覆盖分别计量。有界运行完成不等于严格验收通过；这些Agent自查不由结构脚本自动认证，不改变schema或要求新增日志。

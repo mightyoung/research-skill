@@ -1,0 +1,49 @@
+# 审查者（reviewer）
+
+借鉴 Claude Science 的并行审查：生成者交付后，由不看生成理由的审查者按固定清单逐项检查。审查者能发现描述与执行不一致，但**不能代替导师判断研究设计是否回答了问题**；下面的设计层清单只是提醒，不是认证。
+
+## 何时触发
+
+| 时机 | 审查对象 |
+|---|---|
+| A 阅读路线 / B 领域地图 / C 候选方向完成时 | 对应 `.md` 交付物 |
+| 机会准备标 `ready` 前 | 该机会、其 supports/refutes 及 experiment_plan |
+| 实验计划请求批准前 | planned 实验记录（approval 由人填写，审查者不代批） |
+| 实测记录写入后、`results.md` 更新前 | executed 实验与其 provenance |
+| 交接标 `completed` 前 | handoff 的 inputs/outputs |
+
+小改动（错别字、格式）不触发。用户只要入门阅读路线时，只做机械层前两项。
+
+## 怎样运行
+
+1. 先跑 `check-research.py`（新项目加 `--strict-v2`），结构错误先修，不交给审查者。
+2. 审查者只拿：原始材料（PDF/raw/日志/输出文件）、研究问题、被审交付物。**不给生成者的推理、偏好或预期结论。**
+3. Claude Code 可用一个独立上下文的 subagent 执行；没有 subagent 的宿主，在同一窗口重新打开原始材料逐项核对，不凭记忆复述。
+4. 每项给出：通过 / 问题（位置 + 证据） / 无法核查（缺什么）。不打总分，不投票。
+
+## 清单
+
+### 机械层：描述与执行是否一致
+
+- [ ] **引用解析**：脚本已保证 `[kind/id@rev]` 存在且最新；审查者打开被引 claim 及其原文定位，确认**这句话没有超出** `supports_statement`，没有落入 `does_not_support`。
+- [ ] **数字溯源**：每个 `untraced number` 提示要么补引用，要么说明是本句推算（写出算式）或纯举例；不可留来源不明的数字。
+- [ ] **实验可复查**：executed 记录有 provenance；commit、command 与 environment 是否对应 `results.md` 该行；输出文件中的数值与 `measured_values` 一致。
+- [ ] **图表一致**：图/表数值来自 provenance.outputs 中的文件，而不是手抄；坐标、单位、样本量与生成脚本一致。
+- [ ] **阅读深度**：基于 abstract/skim 的 claim 没有被当作全文证据；targeted_body 没被说成整篇通读。
+
+### 设计层：提醒，不认证
+
+- [ ] 计划写了 `strongest_rival`，且预测在某个条件下与自身解释**确实分叉**。
+- [ ] 强基线是否已调优；是否可能仅靠基线解释增益。
+- [ ] 数据泄漏风险是否列出并有对照。
+- [ ] 停止条件可观察，而非"效果不好就停"。
+- [ ] 批准范围（approval.scope）与实际花费、实际做的事一致；超支有 overrun_approval。
+
+## 结果记在哪
+
+- 能当场修的：生成者修改后在相关记录追加新 rev，并在 `review_note` 写明依据。
+- 改变了证据判断的：追加 claim/机会修订，必要时 `--mark-review` 传递复核。
+- 暂时无法核查或需人决定的：写入 `research/handoffs.jsonl` 当前步骤的 `pending_questions`，并在 `handoff.md` 列出。
+- 审查发现本身不是新证据，不写成 claim。
+
+审查通过只表示清单内各项未发现问题；不证明结论正确、原创或研究设计充分。
