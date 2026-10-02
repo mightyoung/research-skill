@@ -40,6 +40,13 @@ class ApprovalGateTests(TraceBase):
   r=self.check(self.data(self.approved_plan(),self.run_row(spent=3)));self.assertEqual(r.returncode,0,r.stdout);self.assertIn('overrun',r.stdout)
   ok=self.run_row(spent=3,overrun_approval={'by':'PI','at':STAMP,'scope':'extend to 3 CPU-hour'})
   r=self.check(self.data(self.approved_plan(),ok),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+ def test_late_overrun_approval_rejected_in_both_modes(self):
+  late=self.run_row(spent=3,overrun_approval={'by':'PI','at':'2099-01-01T00:00:00Z','scope':'extend to 3 CPU-hour'})
+  for args in [(),('--strict-v2',)]:
+   result=self.check(self.data(self.approved_plan(),late),*args)
+   self.assertNotEqual(result.returncode,0,result.stdout)
+   self.assertIn('overrun_approval',result.stdout)
+   self.assertIn('before execution',result.stdout)
  def test_planned_approval_is_not_a_result(self):
   p=self.approved_plan();p['approval']['result']='supporting'
   r=self.check(self.data(p,self.run_row()));self.assertNotEqual(r.returncode,0)

@@ -278,5 +278,6 @@ def approval_gate(row,plan,actual,current,strict,fail,notes):
  if approval is None:soft('executed run has no recorded approval on its pinned plan')
  elif approval_ok(approval) and stamp(actual.get('executed_at')) and when(approval['at'])>when(actual['executed_at']):fail('approval must be recorded before execution')
  if 'overrun_approval' in actual and not approval_ok(actual['overrun_approval']):fail('overrun_approval requires exactly by/at/scope (declared, not verified)')
+ elif 'overrun_approval' in actual and stamp(actual.get('executed_at')) and when(actual['overrun_approval']['at'])>when(actual['executed_at']):fail('overrun_approval must be recorded before execution')
  limit=plan.get('budget',{}).get('limit') if isinstance(plan.get('budget'),dict) else None
  if number(limit) and number(actual.get('budget_spent')) and actual['budget_spent']>limit and 'overrun_approval' not in actual:soft(f'budget overrun ({actual["budget_spent"]}>{limit}) without overrun_approval')
