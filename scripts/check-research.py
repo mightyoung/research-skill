@@ -5,6 +5,7 @@ import copy
 import datetime as dt
 import json
 import re
+from collections import deque
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -45,11 +46,10 @@ def dependencies(kind,row,provenance_only=False):
  if row.get('schema_version')==2:out.extend(v2_refs(kind,row))
  return out
 
-def validate(root,strict_v2=False):
- errors=[]; history={}; latest={}; counts={};notes=[];extra_stale=set()
- def error(label,msg): errors.append(f'{label}: {msg}')
+def read_journals(root,error):
+ history={};latest={}
  for kind in KINDS:
-  p=root/f'{kind}.jsonl'; counts[kind]=0
+  p=root/f'{kind}.jsonl'
   if kind in EXTRA_KINDS and not p.exists() and not p.is_symlink():continue
   if p.is_symlink(): error(kind,'symlink journal refused');continue
   try:
@@ -71,79 +71,87 @@ def validate(root,strict_v2=False):
      if previous and timestamp(row.get('updated_at')) and timestamp(previous.get('updated_at')):
       if dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))<dt.datetime.fromisoformat(previous['updated_at'].replace('Z','+00:00')):
        error(label,'updated_at moved backwards')
-     history[(kind,rid,rev)]=row;latest[key]=row;counts[kind]+=1
+     history[(kind,rid,rev)]=row;latest[key]=row
   except OSError as e: error(kind,f'cannot read journal: {e.strerror}')
- # Validate every historical record, not just current snapshots.
- for (kind,rid,rev),row in history.items():
-  label=f'{kind}/{rid}@{rev}'
-  schema=row.get('schema_version',1)
-  if type(schema)!=int or schema not in (1,2):error(label,'unsupported schema_version')
-  elif schema==1:
-   if kind in EXTRA_KINDS:error(label,'new journal requires schema_version=2')
-   elif latest[(kind,rid)] is row and row.get('active') is not False:
-    notes.append(f'{label}: legacy schema v1 compatibility; V2 contracts NOT checked')
-    if strict_v2:error(label,'strict-v2 requires explicit migrated active snapshot')
-  else:
-   v2_errors,v2_notes,local_stale=validate_record(root.parent,kind,row,history,latest[(kind,rid)] is row,strict_v2)
-   for message in v2_errors:error(label,message)
-   notes.extend(f'{label}: {message}' for message in v2_notes)
-   if local_stale:extra_stale.add((kind,rid))
-  if 'active' in row and type(row['active'])!=bool: error(label,'active must be boolean')
-  if row.get('active') is False:
-   if not isinstance(row.get('review_note'),str) or not row['review_note'].strip(): error(label,'retirement requires review_note')
-   if kind=='opportunities' and row.get('status')!='rejected': error(label,'retired opportunity must be rejected')
-  for field in ('depends_on',):
-   if field in row and (not isinstance(row[field],list) or any(not isinstance(x,dict) or x.get('kind') not in KINDS or not isinstance(x.get('id'),str) or type(x.get('rev'))!=int for x in row[field])): error(label,'invalid depends_on references')
-  for dep in dependencies(kind,row):
-   if any(type(x) not in (str,int) for x in dep) or dep not in history: error(label,f'missing foreign key {dep}')
-  if kind=='sources':
-   u=row.get('url'); parsed=urlsplit(u) if isinstance(u,str) else None
-   if not parsed or parsed.scheme not in ('https','http') or not parsed.netloc or parsed.username or parsed.password: error(label,'url must be HTTP(S), without credentials')
-   if not timestamp(row.get('retrieved_at')): error(label,'retrieved_at required')
-   if row.get('status') not in ('active','updated','retracted','unavailable'): error(label,'invalid source status')
-  elif kind=='papers':
-   for field in ('work_id','title','version'):
-    if not isinstance(row.get(field),str) or not row[field].strip(): error(label,f'{field} required')
-   if 'reviewed_against' in row:
-    comparison=row['reviewed_against']
-    if not isinstance(comparison,dict) or not isinstance(comparison.get('id'),str) or type(comparison.get('rev'))!=int or not isinstance(row.get('review_note'),str) or not row['review_note'].strip(): error(label,'reviewed_against requires pinned paper and review_note')
-   a=row.get('arxiv_id')
-   if a is not None and (not isinstance(a,str) or not ARXIV.fullmatch(a) or not re.fullmatch(r'v[1-9]\d*',str(row.get('version')))): error(label,'arxiv_id must be unversioned; version must be explicit vN')
-   if row.get('doi') is not None and not re.fullmatch(r'10\.\d{4,9}/\S+',doi(row['doi'])): error(label,'invalid DOI')
-   if row.get('publication_status') not in ('preprint','accepted','published','corrected','retracted','unknown'): error(label,'invalid publication_status')
-   if row.get('reading_depth') not in ('metadata','abstract','skim','targeted_body','full_text'): error(label,'invalid reading_depth')
-   if row.get('reading_depth')=='targeted_body' and (not isinstance(row.get('reading_scope'),str) or not row['reading_scope'].strip()):error(label,'targeted_body requires reading_scope declaring sections read and not read; not a full-read certification')
-   if row.get('review_status') not in ('current','needs_review'): error(label,'invalid review_status')
-  elif kind=='claims':
-   if not isinstance(row.get('statement'),str) or not row['statement'].strip(): error(label,'statement required')
-   if row.get('basis') not in ('abstract','full_text'): error(label,'invalid basis')
-   if row.get('review_status') not in ('current','needs_review'): error(label,'invalid review_status')
-   paper=history.get(('papers',row.get('paper_id'),row.get('paper_rev'))) if isinstance(row.get('paper_id'),str) and type(row.get('paper_rev'))==int else None
-   loc=row.get('locator');loc=loc if isinstance(loc,dict) else {}
-   if not paper or loc.get('version')!=paper.get('version'): error(label,'locator version must match pinned paper')
-   if row.get('basis')=='full_text':
-    if paper and paper.get('reading_depth') not in ('full_text','targeted_body'): error(label,'full_text claim exceeds paper reading depth')
-    if schema==1 and not (type(loc.get('page'))==int and loc['page']>0 or any(isinstance(loc.get(k),str) and loc[k].strip() for k in ('figure','table'))): error(label,'full_text locator needs positive page or figure/table')
-   elif loc.get('section')!='abstract': error(label,'abstract locator must specify section=abstract')
-  elif kind=='opportunities':
-   if not isinstance(row.get('title'),str) or not row['title'].strip(): error(label,'title required')
-   if row.get('status') not in ('candidate','blocked','rejected','ready','needs_review'): error(label,'invalid opportunity status')
-   for field in ('supports','refutes'):
-    if not isinstance(row.get(field),list) or any(not isinstance(x,dict) or not isinstance(x.get('id'),str) or type(x.get('rev'))!=int for x in row.get(field,[]) if isinstance(row.get(field),list)): error(label,f'invalid {field} references')
-   gates=row.get('gates'); gates=gates if isinstance(gates,dict) else {}
-   if any(gates.get(g) not in ('pass','fail','unknown') for g in GATES): error(label,'all data/compute/time/baseline/ethics gates require pass/fail/unknown')
-   closest=row.get('closest_work');closest=closest if isinstance(closest,dict) else {}
-   experiment=row.get('minimal_experiment');experiment=experiment if isinstance(experiment,dict) else {}
-   if row.get('status')=='ready':
-    for g in GATES:
-     if gates.get(g)!='pass': error(label,f'ready blocked by {g}={gates.get(g)}')
-    if not row.get('supports'): error(label,'ready requires supporting evidence')
-    if closest.get('decision') not in ('distinct','revised') or not isinstance(closest.get('queries'),list) or not closest['queries'] or not timestamp(closest.get('searched_at')) or not closest.get('rationale'): error(label,'ready requires closest-work countersearch and distinct/revised rationale')
-    if any(not isinstance(experiment.get(k),str) or not experiment[k].strip() for k in ('hypothesis','baseline','metric','budget','falsifier')): error(label,'ready requires falsifiable minimal experiment')
-    if not isinstance(row.get('stop_conditions'),list) or not row['stop_conditions'] or not all(isinstance(x,str) and x.strip() for x in row['stop_conditions']): error(label,'ready requires stop conditions')
-    for dep in dependencies(kind,row):
-     c=history.get(dep) if all(type(x) in (str,int) for x in dep) else None
-     if dep[0]=='claims' and c and c.get('basis')!='full_text': error(label,'ready requires full_text evidence; abstracts remain provisional')
+ return history,latest
+
+def check_schema(root,kind,rid,row,label,history,latest,strict_v2,error,notes,extra_stale):
+ schema=row.get('schema_version',1)
+ if type(schema)!=int or schema not in (1,2):error(label,'unsupported schema_version')
+ elif schema==1:
+  if kind in EXTRA_KINDS:error(label,'new journal requires schema_version=2')
+  elif latest[(kind,rid)] is row and row.get('active') is not False:
+   notes.append(f'{label}: legacy schema v1 compatibility; V2 contracts NOT checked')
+   if strict_v2:error(label,'strict-v2 requires explicit migrated active snapshot')
+ else:
+  v2_errors,v2_notes,local_stale=validate_record(root.parent,kind,row,history,latest[(kind,rid)] is row,strict_v2)
+  for message in v2_errors:error(label,message)
+  notes.extend(f'{label}: {message}' for message in v2_notes)
+  if local_stale:extra_stale.add((kind,rid))
+ return schema
+
+def check_common(kind,row,label,history,error):
+ if 'active' in row and type(row['active'])!=bool: error(label,'active must be boolean')
+ if row.get('active') is False:
+  if not isinstance(row.get('review_note'),str) or not row['review_note'].strip(): error(label,'retirement requires review_note')
+  if kind=='opportunities' and row.get('status')!='rejected': error(label,'retired opportunity must be rejected')
+ if 'depends_on' in row and (not isinstance(row['depends_on'],list) or any(not isinstance(x,dict) or x.get('kind') not in KINDS or not isinstance(x.get('id'),str) or type(x.get('rev'))!=int for x in row['depends_on'])): error(label,'invalid depends_on references')
+ for dep in dependencies(kind,row):
+  if any(type(x) not in (str,int) for x in dep) or dep not in history: error(label,f'missing foreign key {dep}')
+
+def check_source(row,label,error):
+ u=row.get('url'); parsed=urlsplit(u) if isinstance(u,str) else None
+ if not parsed or parsed.scheme not in ('https','http') or not parsed.netloc or parsed.username or parsed.password: error(label,'url must be HTTP(S), without credentials')
+ if not timestamp(row.get('retrieved_at')): error(label,'retrieved_at required')
+ if row.get('status') not in ('active','updated','retracted','unavailable'): error(label,'invalid source status')
+
+def check_paper(row,label,error):
+ for field in ('work_id','title','version'):
+  if not isinstance(row.get(field),str) or not row[field].strip(): error(label,f'{field} required')
+ if 'reviewed_against' in row:
+  comparison=row['reviewed_against']
+  if not isinstance(comparison,dict) or not isinstance(comparison.get('id'),str) or type(comparison.get('rev'))!=int or not isinstance(row.get('review_note'),str) or not row['review_note'].strip(): error(label,'reviewed_against requires pinned paper and review_note')
+ a=row.get('arxiv_id')
+ if a is not None and (not isinstance(a,str) or not ARXIV.fullmatch(a) or not re.fullmatch(r'v[1-9]\d*',str(row.get('version')))): error(label,'arxiv_id must be unversioned; version must be explicit vN')
+ if row.get('doi') is not None and not re.fullmatch(r'10\.\d{4,9}/\S+',doi(row['doi'])): error(label,'invalid DOI')
+ if row.get('publication_status') not in ('preprint','accepted','published','corrected','retracted','unknown'): error(label,'invalid publication_status')
+ if row.get('reading_depth') not in ('metadata','abstract','skim','targeted_body','full_text'): error(label,'invalid reading_depth')
+ if row.get('reading_depth')=='targeted_body' and (not isinstance(row.get('reading_scope'),str) or not row['reading_scope'].strip()):error(label,'targeted_body requires reading_scope declaring sections read and not read; not a full-read certification')
+ if row.get('review_status') not in ('current','needs_review'): error(label,'invalid review_status')
+
+def check_claim(row,label,schema,history,error):
+ if not isinstance(row.get('statement'),str) or not row['statement'].strip(): error(label,'statement required')
+ if row.get('basis') not in ('abstract','full_text'): error(label,'invalid basis')
+ if row.get('review_status') not in ('current','needs_review'): error(label,'invalid review_status')
+ paper=history.get(('papers',row.get('paper_id'),row.get('paper_rev'))) if isinstance(row.get('paper_id'),str) and type(row.get('paper_rev'))==int else None
+ loc=row.get('locator');loc=loc if isinstance(loc,dict) else {}
+ if not paper or loc.get('version')!=paper.get('version'): error(label,'locator version must match pinned paper')
+ if row.get('basis')=='full_text':
+  if paper and paper.get('reading_depth') not in ('full_text','targeted_body'): error(label,'full_text claim exceeds paper reading depth')
+  if schema==1 and not (type(loc.get('page'))==int and loc['page']>0 or any(isinstance(loc.get(k),str) and loc[k].strip() for k in ('figure','table'))): error(label,'full_text locator needs positive page or figure/table')
+ elif loc.get('section')!='abstract': error(label,'abstract locator must specify section=abstract')
+
+def check_opportunity(row,label,history,error):
+ if not isinstance(row.get('title'),str) or not row['title'].strip(): error(label,'title required')
+ if row.get('status') not in ('candidate','blocked','rejected','ready','needs_review'): error(label,'invalid opportunity status')
+ for field in ('supports','refutes'):
+  if not isinstance(row.get(field),list) or any(not isinstance(x,dict) or not isinstance(x.get('id'),str) or type(x.get('rev'))!=int for x in row.get(field,[]) if isinstance(row.get(field),list)): error(label,f'invalid {field} references')
+ gates=row.get('gates'); gates=gates if isinstance(gates,dict) else {}
+ if any(gates.get(g) not in ('pass','fail','unknown') for g in GATES): error(label,'all data/compute/time/baseline/ethics gates require pass/fail/unknown')
+ if row.get('status')!='ready': return
+ closest=row.get('closest_work');closest=closest if isinstance(closest,dict) else {}
+ experiment=row.get('minimal_experiment');experiment=experiment if isinstance(experiment,dict) else {}
+ for g in GATES:
+  if gates.get(g)!='pass': error(label,f'ready blocked by {g}={gates.get(g)}')
+ if not row.get('supports'): error(label,'ready requires supporting evidence')
+ if closest.get('decision') not in ('distinct','revised') or not isinstance(closest.get('queries'),list) or not closest['queries'] or not timestamp(closest.get('searched_at')) or not closest.get('rationale'): error(label,'ready requires closest-work countersearch and distinct/revised rationale')
+ if any(not isinstance(experiment.get(k),str) or not experiment[k].strip() for k in ('hypothesis','baseline','metric','budget','falsifier')): error(label,'ready requires falsifiable minimal experiment')
+ if not isinstance(row.get('stop_conditions'),list) or not row['stop_conditions'] or not all(isinstance(x,str) and x.strip() for x in row['stop_conditions']): error(label,'ready requires stop conditions')
+ for dep in dependencies('opportunities',row):
+  c=history.get(dep) if all(type(x) in (str,int) for x in dep) else None
+  if dep[0]=='claims' and c and c.get('basis')!='full_text': error(label,'ready requires full_text evidence; abstracts remain provisional')
+
+def check_identities(history,error):
  # Identity invariants across versions and across revisions (identity cannot drift).
  identities={};works={};seen_versions={}
  for (kind,rid,rev),row in history.items():
@@ -158,8 +166,9 @@ def validate(root,strict_v2=False):
    vkey=(namespace,value,row.get('version'))
    if vkey in seen_versions and seen_versions[vkey]!=rid: error(rid,'duplicate paper version identity')
    seen_versions[vkey]=rid
- # Reject circular provenance, including additional explicit dependencies.
- from collections import deque
+
+def check_acyclic(history,error):
+ # Reject circular provenance, including additional explicit dependencies (Kahn's algorithm).
  graph={key:{d for d in dependencies(key[0],row,True) if all(type(x) in (str,int) for x in d) and d in history} for key,row in history.items()}
  incoming={key:len(deps) for key,deps in graph.items()};reverse={key:[] for key in graph}
  for key,deps in graph.items():
@@ -171,6 +180,8 @@ def validate(root,strict_v2=False):
    incoming[dependent]-=1
    if incoming[dependent]==0: queue.append(dependent)
  if processed!=len(graph): error('dependencies','cycle in pinned provenance graph')
+
+def find_stale(latest,extra_stale):
  stale=set(extra_stale)
  # A newly recorded arXiv version makes older interpretations require comparison.
  newest={}
@@ -186,6 +197,7 @@ def validate(root,strict_v2=False):
    if comparison!={'id':newest[a][1],'rev':newest[a][2]} or newer.get('reading_depth')!='full_text' or not row.get('review_note'): stale.add(key)
  for key,row in latest.items():
   if key[0]=='sources' and row.get('status') in ('retracted','unavailable') or key[0]=='papers' and row.get('publication_status')=='retracted' or row.get('review_status')=='needs_review' or key[0]=='opportunities' and row.get('status')=='needs_review' or row.get('active') is False or key[0]=='handoffs' and row.get('step_state')=='needs_review': stale.add(key)
+ # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:
   changed=False
@@ -195,6 +207,24 @@ def validate(root,strict_v2=False):
     target=latest.get(dep[:2])
     if target and (target['rev']!=dep[2] or dep[:2] in stale) and key not in stale:
      stale.add(key);changed=True
+ return stale
+
+def validate(root,strict_v2=False):
+ errors=[];notes=[];extra_stale=set()
+ def error(label,msg): errors.append(f'{label}: {msg}')
+ history,latest=read_journals(root,error)
+ # Validate every historical record, not just current snapshots.
+ for (kind,rid,rev),row in history.items():
+  label=f'{kind}/{rid}@{rev}'
+  schema=check_schema(root,kind,rid,row,label,history,latest,strict_v2,error,notes,extra_stale)
+  check_common(kind,row,label,history,error)
+  if kind=='sources': check_source(row,label,error)
+  elif kind=='papers': check_paper(row,label,error)
+  elif kind=='claims': check_claim(row,label,schema,history,error)
+  elif kind=='opportunities': check_opportunity(row,label,history,error)
+ check_identities(history,error)
+ check_acyclic(history,error)
+ stale=find_stale(latest,extra_stale)
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:
    error(f'{kind}/{rid}','needs_review: evidence changed, unavailable, retracted or dependent on stale evidence')
