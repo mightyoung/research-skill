@@ -1,4 +1,4 @@
-# JSONL 证据约定（schema v1）
+# JSONL 证据约定（基础字段自 schema v1 起；V2 扩展见下文）
 
 `research/{sources,papers,claims,opportunities}.jsonl` 是追加历史日志。每行一个完整对象，不写 delta。
 
