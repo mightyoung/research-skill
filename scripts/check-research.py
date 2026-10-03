@@ -228,8 +228,11 @@ def find_stale(latest,extra_stale):
  reverse=[]
  for key,row in latest.items():
   oid=row.get('opportunity_id')
-  if key[0]!='assertions' or row.get('active') is False or not isinstance(oid,str) or ('opportunities',oid) not in latest:continue
-  opp=latest[('opportunities',oid)];reverse.append((key,('opportunities',oid)))
+  if key[0]!='assertions' or not isinstance(oid,str) or ('opportunities',oid) not in latest:continue
+  opp=latest[('opportunities',oid)]
+  # Retiring is a judgment change (timestamp check below), but a retired record stays stale forever,
+  # so only active assertions pass inherited staleness back.
+  if row.get('active') is not False:reverse.append((key,('opportunities',oid)))
   if row.get('review_status')=='needs_review' or timestamp(row.get('updated_at')) and timestamp(opp.get('updated_at')) and dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))>dt.datetime.fromisoformat(opp['updated_at'].replace('Z','+00:00')):stale.add(('opportunities',oid))
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True

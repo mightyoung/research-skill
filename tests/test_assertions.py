@@ -120,6 +120,12 @@ class AssertionTests(unittest.TestCase):
   self.assertNotIn('could not complete',r.stdout+r.stderr)
   d=self.data(evidence=[dict(pin,role='context')]);del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
+ def test_retiring_assertion_reopens_direction_once(self):
+  d=self.data();d['assertions'].append(dict(assertion(),rev=2,updated_at='2026-10-02T12:00:00Z',active=False,review_note='superseded by a narrower assertion'))
+  r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('opportunities/o1',r.stdout)
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at='2026-10-02T18:00:00Z'))
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)
