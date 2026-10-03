@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 
 EXTRA_KINDS=('searches','tensions','experiments','failures','handoffs')
 LAYERS={'review','foundational','strong_baseline','recent','negative_results','countersearch'}
+INTENTS={'known_item','exploratory','snowball'}
 HASH=re.compile(r'^[0-9a-f]{64}$')
 COMMIT=re.compile(r'^[0-9a-f]{7,64}$')
 TEXT_LIMIT=16*1024*1024
@@ -128,6 +129,7 @@ def validate_record(project,kind,row,history,current,strict=False):
  elif kind=='searches':
   require_string('query');enum('layer',LAYERS)
   if 'subq' in row and not text(row['subq']):fail('subq must be nonempty string naming a brief sub-question')
+  if 'intent' in row:enum('intent',INTENTS)
   if not stamp(row.get('searched_at')):fail('searched_at requires timezone')
   bounds=obj('time_range')
   try:

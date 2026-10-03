@@ -209,6 +209,24 @@ def find_stale(latest,extra_stale):
      stale.add(key);changed=True
  return stale
 
+# Discovery-yield heuristics: notes only; a compliant project can still be a low-yield one.
+MIN_DISCOVERY_SEARCHES=5
+MAX_SHALLOW_SHARE=0.5
+def yield_notes(latest):
+ rows=lambda kind:[r for (k,_),r in latest.items() if k==kind and r.get('active') is not False]
+ notes=[];searches=rows('searches');papers=rows('papers')
+ if searches:
+  intents=[r.get('intent') for r in searches]
+  if all(i is None for i in intents):notes.append('discovery yield: searches lack intent; known-item lookups cannot be told from discovery')
+  else:
+   found=sum(i in ('exploratory','snowball') for i in intents)
+   if found<MIN_DISCOVERY_SEARCHES:notes.append(f'discovery yield: only {found} exploratory/snowball searches; known-item lookups confirm a reading list, not discover one')
+   if 'snowball' not in intents:notes.append('discovery yield: no snowball (citation-chasing) search from core papers')
+ if papers:
+  shallow=sum(r.get('reading_depth') in ('metadata','abstract') for r in papers)
+  if shallow/len(papers)>MAX_SHALLOW_SHARE:notes.append(f'discovery yield: {shallow}/{len(papers)} papers read at abstract depth or less')
+ return notes
+
 def validate(root,strict_v2=False):
  errors=[];notes=[];extra_stale=set()
  def error(label,msg): errors.append(f'{label}: {msg}')
@@ -228,6 +246,7 @@ def validate(root,strict_v2=False):
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:
    error(f'{kind}/{rid}','needs_review: evidence changed, unavailable, retracted or dependent on stale evidence')
+ notes.extend(yield_notes(latest))
  independent=len({row.get('work_id') for (k,_),row in latest.items() if k=='papers' and isinstance(row.get('work_id'),str)})
  return errors,latest,stale,independent,notes
 
