@@ -4,6 +4,8 @@ README 只保留当前用法；各版本的改动说明与验证记录按原文�
 
 ## 未发布：发现产出（P0/P1）
 
+近邻正文门槛：对照运行显示"核心近邻先读正文"只作为提示时基本没被执行（两份新产物只读摘要的论文仍占 45%–50%，一个 continue 候选的最近似工作只读了摘要）。opportunities 新增 `decisive_neighbors`（固定修订的论文引用，参与外键与复核传播）：decision=continue/revise 或 ready 必须列出，且所列论文须读到正文，否则报错；缺字段在默认模式只提示、`--strict-v2` 报错。park/abandon 不受限。examples 的 o1 已补该字段。
+
 起因：human-count 一次 discover 运行通过了 `--strict-v2`，但 19 次检索里多数是按名字核对已知论文，C 只有 2 个元问题候选、全部停放、五关卡全 unknown，正文大半是免责与模板标签。结构合规成了低产出的最省力路径。
 
 P0 先生成后筛选：field-discovery 要求选题前先列 5–8 个原始想法的候选池（至少 3 种贡献类型）；全部停放合法，但每项要写可执行化路径和一个可立即动手的构造动作。检索区分 known_item / exploratory / snowball（searches 可选 `intent`），默认至少 5 次探索检索、从 ≥2 篇核心论文做引用追溯；预算未用完而关键子问题未解决时继续检索；核心近邻读到正文后再精读专利、产品页等外围材料。check-research 新增 `discovery yield` 提示（缺 intent、探索检索不足、无 snowball、超过一半论文只读摘要），只提示不判失败。

@@ -67,7 +67,7 @@ def refs(kind,row):
  def many(field,target=None):
   for value in row.get(field,[]) if isinstance(row.get(field),list) else []:
    if isinstance(value,dict):result.append((target or value.get('kind'),value.get('id'),value.get('rev')))
- if kind=='opportunities':many('search_refs','searches');many('tension_refs','tensions')
+ if kind=='opportunities':many('search_refs','searches');many('tension_refs','tensions');many('decisive_neighbors','papers')
  if kind=='tensions':many('evidence')
  if kind=='experiments':simple('opportunity','opportunities');simple('plan_ref','experiments')
  if kind=='failures':many('evidence')
@@ -178,6 +178,7 @@ def validate_record(project,kind,row,history,current,strict=False):
   if nxt.get('state')=='planned' and number(nb.get('spent')) and number(nb.get('limit')) and nb['spent']>=nb['limit']:fail('planned next_search has no remaining budget')
   if nxt.get('state')=='exhausted' and nxt.get('unresolved') is not True:fail('exhausted search budget must mark unresolved')
   if 'experiment_plan' in row:discrimination(row['experiment_plan'],fail)
+  neighbor_gate(row,history,current,strict,ref_list,fail,notes)
   if row.get('status')=='ready':
    found=[history.get(('searches',r.get('id'),r.get('rev')),{}) for r in searches if isinstance(r,dict) and isinstance(r.get('id'),str) and type(r.get('rev'))==int]
    good=[r for r in found if r.get('status')=='complete' and r.get('returned_count',0)>0 and r.get('schema_version')==2]
@@ -284,3 +285,15 @@ def approval_gate(row,plan,actual,current,strict,fail,notes):
  elif 'overrun_approval' in actual and stamp(actual.get('executed_at')) and when(actual['overrun_approval']['at'])>when(actual['executed_at']):fail('overrun_approval must be recorded before execution')
  limit=plan.get('budget',{}).get('limit') if isinstance(plan.get('budget'),dict) else None
  if number(limit) and number(actual.get('budget_spent')) and actual['budget_spent']>limit and 'overrun_approval' not in actual:soft(f'budget overrun ({actual["budget_spent"]}>{limit}) without overrun_approval')
+
+BODY_READ=('targeted_body','full_text')
+def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
+ # An actionable decision must rest on decisive neighbors read in the body, not on abstracts.
+ neighbors=ref_list('decisive_neighbors','papers') if 'decisive_neighbors' in row else []
+ # Historical revisions are not re-gated: append-only repair (body read + new rev) must restore PASS.
+ if not current or row.get('active') is False or row.get('decision') not in ('continue','revise') and row.get('status')!='ready':return
+ for ref in neighbors:
+  paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
+  if paper and paper.get('reading_depth') not in BODY_READ:fail(f"decisive neighbor {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
+ if not neighbors:
+  (fail if strict else notes.append)('continue/revise/ready requires decisive_neighbors read in the body (targeted_body/full_text)')

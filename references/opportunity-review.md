@@ -13,7 +13,7 @@
 判决为 covered（淘汰）、revised（缩小或改变主张后重新检查）、distinct（在已查范围暂未覆盖）、unknown。
 已有工作覆盖时不以改名保留 idea。新颖性只能写检索边界内的暂定判断，不保证原创。
 检索零命中、网络/访问失败、只查近期不能证明创新：记录为 unknown 和缺口，不能写“已证实原创”。
-没有全文可暂留 candidate；摘要、标题和缺少反例的搜索不能支撑 ready。
+没有全文可暂留 candidate；摘要、标题和缺少反例的搜索不能支撑 ready。决定性近邻只读到摘要的机会不能标 continue/revise，只能 park，见 evidence schema 的 `decisive_neighbors`。
 
 ## 硬关卡先于排名
 

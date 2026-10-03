@@ -15,7 +15,7 @@ def bundle():
   for row in rows:row['schema_version']=2
  d['claims'][0].update(claim_fields())
  d['searches']=[search(i) for i in range(6)]
- d['opportunities'][0].update(search_refs=[{'id':f'q{i}','rev':1} for i in range(6)],novelty='provisional',critical_unknown=['whether tuned baseline suffices'],decision='continue',change_decision_if='strong baseline explains the gain',next_search={'query':'negative result tuned baseline rare data','budget':{'limit':2,'spent':0,'unit':'queries'},'state':'planned','priority':'strongest_falsifier'},importance='rare failure matters',attackability={'status':'actionable','path':'small controlled split comparison'},why_now={'kind':'conditions','reason':'new accessible synthetic diagnostic split'},tension_refs=[],experiment_plan=plan())
+ d['opportunities'][0].update(search_refs=[{'id':f'q{i}','rev':1} for i in range(6)],novelty='provisional',critical_unknown=['whether tuned baseline suffices'],decision='continue',change_decision_if='strong baseline explains the gain',next_search={'query':'negative result tuned baseline rare data','budget':{'limit':2,'spent':0,'unit':'queries'},'state':'planned','priority':'strongest_falsifier'},importance='rare failure matters',attackability={'status':'actionable','path':'small controlled split comparison'},why_now={'kind':'conditions','reason':'new accessible synthetic diagnostic split'},tension_refs=[],experiment_plan=plan(),decisive_neighbors=[{'id':'p1-v1','rev':1}])
  return d
 class V2Tests(unittest.TestCase):
  def setUp(self):
@@ -54,6 +54,29 @@ class V2Tests(unittest.TestCase):
   d['papers'][0]['reading_depth']='abstract';d['opportunities'][0]['status']='candidate'
   r=self.check(d);self.assertIn('1/1 papers read at abstract depth',r.stdout)
   d=bundle();d['searches'][0]['intent']='lookup';r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('intent',r.stdout)
+ def test_actionable_decision_requires_body_read_decisive_neighbors(self):
+  def opp(decision='continue',depth='full_text',**changes):
+   d=bundle();o=d['opportunities'][0];o.update(status='candidate',decision=decision,**changes);d['papers'][0]['reading_depth']=depth
+   if depth=='targeted_body':d['papers'][0]['reading_scope']='method and experiments read; appendix not read'
+   if depth=='abstract':d['claims'][0].update(basis='abstract',locator={'version':'v1','section':'abstract'},locator_reliability='source_only')
+   return d
+  for depth in ('full_text','targeted_body'):
+   r=self.check(opp(depth=depth),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  for decision in ('continue','revise'):
+   r=self.check(opp(decision,'abstract'));self.assertNotEqual(r.returncode,0);self.assertIn('decisive neighbor p1-v1 read only at abstract',r.stdout)
+  r=self.check(opp('park','abstract'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  d=opp();del d['opportunities'][0]['decisive_neighbors']
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout);self.assertIn('decisive_neighbors',r.stdout)
+  r=self.check(d,'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('decisive_neighbors',r.stdout)
+  r=self.check(opp(decisive_neighbors=[]),'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('decisive_neighbors',r.stdout)
+  r=self.check(opp(decisive_neighbors=[{'id':'missing','rev':1}]));self.assertNotEqual(r.returncode,0);self.assertIn('missing foreign key',r.stdout)
+  # Append-only repair: a later body read plus a new opportunity rev must restore PASS without rewriting history.
+  d=opp(depth='abstract');old=d['opportunities'][0]
+  read=copy.deepcopy(d['papers'][0]);read.update(rev=2,reading_depth='full_text')
+  claim=copy.deepcopy(d['claims'][0]);claim.update(rev=2,paper_rev=2)
+  fixed=copy.deepcopy(old);fixed.update(rev=2,decisive_neighbors=[{'id':'p1-v1','rev':2}],supports=[{'id':claim['id'],'rev':2}])
+  d['papers'].append(read);d['claims'].append(claim);d['opportunities'].append(fixed)
+  r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)
