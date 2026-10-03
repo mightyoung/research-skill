@@ -181,7 +181,60 @@ def check_acyclic(history,error):
    if incoming[dependent]==0: queue.append(dependent)
  if processed!=len(graph): error('dependencies','cycle in pinned provenance graph')
 
-def find_stale(latest,extra_stale):
+def propagating(key,row):
+ """Pinned dependencies that carry staleness from target to dependent."""
+ # A plan's built-in opportunity pin records which direction it was designed for; revising the
+ # direction (a downstream decision) must not invalidate the evidence it was decided from.
+ # Explicit depends_on keeps normal freshness.
+ link=row.get('opportunity') if key[0]=='experiments' and row.get('phase')=='planned' else None
+ plan_link=('opportunities',link.get('id'),link.get('rev')) if isinstance(link,dict) else None
+ explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
+ return [dep for dep in dependencies(key[0],row) if all(type(x) in (str,int) for x in dep) and (dep!=plan_link or dep in explicit)]
+
+def acknowledged(opportunity):
+ """Assertion revisions an opportunity decided on; malformed entries are reported by the V2 validator."""
+ value=opportunity.get('assertion_review')
+ return {(a['id'],a['rev']) for a in value if isinstance(a,dict) and isinstance(a.get('id'),str) and type(a.get('rev'))==int} if isinstance(value,list) else set()
+
+def linked_opportunities(history):
+ """Every opportunity_id each assertion has carried in any revision."""
+ linked={}
+ for (kind,rid,_),row in history.items():
+  if kind=='assertions' and isinstance(row.get('opportunity_id'),str):linked.setdefault(rid,set()).add(row['opportunity_id'])
+ return linked
+
+def reverse_links(history,latest):
+ """Directions each active assertion feeds back into: every one it was linked to or acknowledged by."""
+ linked=linked_opportunities(history);out={}
+ for (kind,rid),row in latest.items():
+  if kind=='assertions' and row.get('active') is not False:out[rid]=set(linked.get(rid,()))
+ for (kind,oid),row in latest.items():
+  if kind=='opportunities':
+   for aid,_ in acknowledged(row):
+    if aid in out:out[aid].add(oid)
+ return out
+
+def stale_cycles(history,latest):
+ """Assertions on a cycle of pinned dependencies (exact revisions) plus reverse links: never converges."""
+ back={}
+ for aid,oids in reverse_links(history,latest).items():
+  for oid in oids:back.setdefault(oid,[]).append(('assertions',aid,latest[('assertions',aid)]['rev']))
+ def edges(node):
+  out=[dep for dep in propagating(node[:2],history[node]) if dep in history]
+  return out+back.get(node[1],[]) if node[0]=='opportunities' else out
+ state={};bad=set()
+ for start in [(k[0],k[1],row['rev']) for k,row in latest.items()]:
+  if start in state:continue
+  stack=[(start,iter(edges(start)))];path=[start];state[start]=1
+  while stack:
+   node,children=stack[-1]
+   child=next(children,None)
+   if child is None:state[node]=2;stack.pop();path.pop();continue
+   if state.get(child)==1:bad.update(n[:2] for n in path[path.index(child):] if n[0]=='assertions')
+   elif child not in state:state[child]=1;stack.append((child,iter(edges(child))));path.append(child)
+ return sorted(bad)
+
+def find_stale(history,latest,extra_stale):
  stale=set(extra_stale)
  # A newly recorded arXiv version makes older interpretations require comparison.
  newest={}
@@ -197,16 +250,39 @@ def find_stale(latest,extra_stale):
    if comparison!={'id':newest[a][1],'rev':newest[a][2]} or newer.get('reading_depth')!='full_text' or not row.get('review_note'): stale.add(key)
  for key,row in latest.items():
   if key[0]=='sources' and row.get('status') in ('retracted','unavailable') or key[0]=='papers' and row.get('publication_status')=='retracted' or row.get('review_status')=='needs_review' or key[0]=='opportunities' and row.get('status')=='needs_review' or row.get('active') is False or key[0]=='handoffs' and row.get('step_state')=='needs_review': stale.add(key)
+ # Reverse link: a re-judged or stale assertion re-opens its (unpinned) opportunity decision.
+ # Safe inside the closure because no built-in edge propagates from opportunities back down.
+ linked=linked_opportunities(history)
+ reverse=[]
+ for key,row in latest.items():
+  if key[0]!='assertions':continue
+  # Every direction this assertion was ever linked to (current, moved away, detached) must name its
+  # latest revision, since timestamps can tie. Retiring is such a judgment change, but a retired record
+  # stays stale forever, so only active assertions pass their own or inherited staleness back.
+  for former in linked.get(key[1],()):
+   opp=latest.get(('opportunities',former))
+   if opp is not None and (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',former))
+ # Own or inherited staleness of an active assertion reaches every direction linked to or acknowledging it.
+ for aid,oids in reverse_links(history,latest).items():
+  for oid in oids:
+   if ('opportunities',oid) not in latest:continue
+   reverse.append((('assertions',aid),('opportunities',oid)))
+   if latest[('assertions',aid)].get('review_status')=='needs_review':stale.add(('opportunities',oid))
+ # Any acknowledged assertion that has since moved on.
+ for key,row in latest.items():
+  acks=acknowledged(row) if key[0]=='opportunities' else set()
+  if any(('assertions',aid) in latest and (aid,latest[('assertions',aid)]['rev']) not in acks for aid,_ in acks):stale.add(key)
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:
   changed=False
   for key,row in latest.items():
-   for dep in dependencies(key[0],row):
-    if not all(type(x) in (str,int) for x in dep): continue
+   for dep in propagating(key,row):
     target=latest.get(dep[:2])
     if target and (target['rev']!=dep[2] or dep[:2] in stale) and key not in stale:
      stale.add(key);changed=True
+  for source,opp in reverse:
+   if source in stale and opp not in stale:stale.add(opp);changed=True
  return stale
 
 # Discovery-yield heuristics: notes only; a compliant project can still be a low-yield one.
@@ -242,7 +318,8 @@ def validate(root,strict_v2=False):
   elif kind=='opportunities': check_opportunity(row,label,history,error)
  check_identities(history,error)
  check_acyclic(history,error)
- stale=find_stale(latest,extra_stale)
+ for kind,rid in stale_cycles(history,latest):error(f'{kind}/{rid}','assertion is on a stale cycle: its pinned dependencies reach a direction it is linked to or acknowledged by; remove that dependency')
+ stale=find_stale(history,latest,extra_stale)
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:
    error(f'{kind}/{rid}','needs_review: evidence changed, unavailable, retracted or dependent on stale evidence')

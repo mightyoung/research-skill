@@ -31,7 +31,7 @@ def initialize(destination,claude_guide=False):
  mapping['field-judgment.md']='field-judgment.md'
  mapping['paper-reading.md']='paper-reading.md'
  files={dest:(templates/src).read_bytes() for src,dest in mapping.items()}
- files.update({f'research/{name}.jsonl':b'' for name in ['sources','papers','claims','opportunities','searches','tensions','experiments','failures','handoffs']})
+ files.update({f'research/{name}.jsonl':b'' for name in ['sources','papers','claims','opportunities','searches','tensions','experiments','failures','handoffs','assertions']})
  files['.gitignore']=IGNORE.encode()
  for rel,data in files.items():
   p=root/rel

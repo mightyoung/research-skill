@@ -24,6 +24,7 @@ description: Use when entering a research field, mapping its frontier, finding d
 | 寻找方向 | landscape → [opportunity review](references/opportunity-review.md) | 最近似工作反证、可行性关卡、通常约 3 个方向；证据不足可更少或零个 |
 | 审查想法 | opportunity review、evidence schema | 覆盖/修正/保留判决、证据、最小可证伪实验 |
 | 增量更新 | evidence schema、opportunity review | 追加版本/状态/证据，标记依赖复核，保留历史，更新交接 |
+| 实验结果回来 | [result feedback](references/result-feedback.md)、evidence schema | 实测记录、每条主张的保留/调整/撤回、方向决定更新 |
 
 按条件再加载：
 
@@ -36,7 +37,7 @@ description: Use when entering a research field, mapping its frontier, finding d
 | 跨来源获取论文 | [acquisition](references/acquisition.md) |
 | 路径、工具或宿主加载差异 | [host guide](references/hosts.md) |
 
-流程：界定 → 分层检索 → 地图 → 候选与最近似工作反证 → 必要的关键精读 → 硬性关卡 → 排序 → 最小可证伪实验 → `复现/` → `experiment/results.md` + `evaluation.md` → `handoff.md`。
+流程：界定 → 分层检索 → 地图 → 候选与最近似工作反证 → 必要的关键精读 → 硬性关卡 → 排序 → 最小可证伪实验 → `复现/` → `experiment/results.md` + `evaluation.md` → 主张回流 → `handoff.md`。
 
 ## 开始
 
@@ -77,6 +78,7 @@ description: Use when entering a research field, mapping its frontier, finding d
 
 **实验与追溯**
 - 计划与实测分开；低辨别力的阴性结果算不确定；失败保留条件与重开条件。
+- 论文说的写 `claims`，我们准备论证的写 `assertions`（不挂论文，状态由引用的实测或全文原述撑起）；结果回来按 [result feedback](references/result-feedback.md) 逐条改主张，再改方向。
 - 已执行实验须引用带 `approval:{by,at,scope}` 的计划（批准早于执行，由人填写）；超出计划预算另需 `overrun_approval`，否则提示，`--strict-v2` 报错。
 - 已执行实验在 `actual.provenance` 绑定代码 commit、命令、环境和输出 hash。
 - 报告与 `experiment/*.md` 中的数字和结论用 `[kind/id@rev]` 引用日志记录。

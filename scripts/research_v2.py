@@ -5,7 +5,8 @@ import math
 import re
 from pathlib import Path, PurePosixPath
 
-EXTRA_KINDS=('searches','tensions','experiments','failures','handoffs')
+EXTRA_KINDS=('searches','tensions','experiments','failures','handoffs','assertions')
+ASSERTION_STATES={'untested','supported','refuted','inconclusive','withdrawn'}
 LAYERS={'review','foundational','strong_baseline','recent','negative_results','countersearch'}
 INTENTS={'known_item','exploratory','snowball'}
 HASH=re.compile(r'^[0-9a-f]{64}$')
@@ -74,6 +75,7 @@ def refs(kind,row):
  if kind=='tensions':many('evidence')
  if kind=='experiments':simple('opportunity','opportunities');simple('plan_ref','experiments')
  if kind=='failures':many('evidence')
+ if kind=='assertions':many('evidence')
  return result
 
 def validate_record(project,kind,row,history,current,strict=False):
@@ -170,6 +172,8 @@ def validate_record(project,kind,row,history,current,strict=False):
   why_now(row,fail);attackability(row,fail)
  elif kind=='opportunities':
   searches=ref_list('search_refs','searches');ref_list('tension_refs','tensions')
+  # Acknowledged assertion revisions: deliberately not a dependency, so it cannot form a stale cycle.
+  if 'assertion_review' in row:ref_list('assertion_review','assertions')
   enum('novelty',{'provisional','unknown','covered'});enum('decision',{'continue','revise','park','abandon'})
   unknowns(row.get('critical_unknown'),fail)
   require_string('change_decision_if');require_string('importance');why_now(row,fail);attackability(row,fail)
@@ -244,6 +248,33 @@ def validate_record(project,kind,row,history,current,strict=False):
   if row.get('step_state')=='completed' and row.get('review_status','current')=='current' and unresolved:
    if not text(row.get('recovery_note')) or not strings(row.get('invalidation_reasons')):fail('handoff recovery requires recovery_note and retained invalidation reasons across intermediate revisions')
   if row.get('step_state')=='completed' and row.get('summary_only') is True:fail('summary alone cannot complete handoff')
+ elif kind=='assertions':
+  # Our own research claims; state is a declaration checked only against the typed evidence it cites.
+  require_string('statement');enum('assertion_state',ASSERTION_STATES)
+  if not strings(row.get('does_not_support')):fail('does_not_support must state stronger conclusions excluded')
+  # Unpinned on purpose: plans already pin opportunities, so a pinned link would close an unresolvable stale cycle.
+  if 'opportunity' in row:fail('use opportunity_id (unpinned); assertions must not pin opportunity revisions')
+  if 'opportunity_id' in row and not (text(row['opportunity_id']) and any(k[0]=='opportunities' and k[1]==row['opportunity_id'] for k in history)):fail('opportunity_id must name an existing opportunity')
+  linked=[]
+  for ref in ref_list('evidence'):
+   # ref_list already reported malformed entries; skip them before any history lookup.
+   if not isinstance(ref,dict) or not isinstance(ref.get('kind'),str) or not isinstance(ref.get('id'),str) or type(ref.get('rev'))!=int:continue
+   role=ref.get('role')
+   if role not in ('supports','refutes','context'):fail('evidence role must be supports/refutes/context');continue
+   target=history.get((ref.get('kind'),ref.get('id'),ref.get('rev')),{})
+   actual=target.get('actual') if ref.get('kind')=='experiments' and target.get('phase')=='executed' and isinstance(target.get('actual'),dict) else {}
+   if role=='supports' and actual.get('result') in ('refuting','inconclusive') or role=='refutes' and actual.get('result') in ('supporting','inconclusive'):fail(f'evidence role {role} contradicts run result {actual.get("result")}')
+   linked.append((role,ref.get('kind'),target,actual))
+  def decisive(role,result):return any(r==role and a.get('result')==result and a.get('discriminating') is True and a.get('execution_state')=='completed' for r,_,_,a in linked)
+  state=row.get('assertion_state')
+  supported=decisive('supports','supporting') or any(r=='supports' and k=='claims' and t.get('schema_version')==2 and t.get('basis')=='full_text' and t.get('evidence_kind')=='paper_statement' and t.get('material_access')=='available' for r,k,t,_ in linked)
+  refuted=decisive('refutes','refuting')
+  if state=='untested' and (supported or refuted):fail('untested cannot cite state-determining evidence; update assertion_state or cite it as context')
+  if state in ('supported','refuted') and supported and refuted:fail('conflicting decisive evidence: state must be inconclusive or withdrawn')
+  if state=='supported' and not supported:fail('supported needs a discriminating supporting run or a full-text paper statement')
+  if state=='refuted' and not refuted:fail('refuted needs a discriminating refuting run')
+  if state=='inconclusive' and not (supported and refuted) and not any(a.get('result')=='inconclusive' for *_,a in linked):fail('inconclusive needs an inconclusive executed run or conflicting decisive evidence')
+  if state=='withdrawn' and not text(row.get('review_note')):fail('withdrawn requires review_note')
  return errors,notes,stale
 
 def why_now(row,fail):
