@@ -161,6 +161,11 @@ class AssertionTests(unittest.TestCase):
    d=self.data();d['opportunities'][0]['assertion_review']=value;r=self.check(d)
    self.assertNotEqual(r.returncode,0);self.assertIn('assertion_review',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
 
+ def test_executed_run_opportunity_pin_keeps_freshness(self):
+  d=self.data(dict(run(),opportunity={'id':'o1','rev':1}))
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2))
+  r=self.check(d);self.assertIn('experiments/r1: needs_review',r.stdout);self.assertNotIn('experiments/e1: needs_review',r.stdout)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)

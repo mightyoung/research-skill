@@ -186,7 +186,7 @@ def propagating(key,row):
  # A plan's built-in opportunity pin records which direction it was designed for; revising the
  # direction (a downstream decision) must not invalidate the evidence it was decided from.
  # Explicit depends_on keeps normal freshness.
- link=row.get('opportunity') if key[0]=='experiments' else None
+ link=row.get('opportunity') if key[0]=='experiments' and row.get('phase')=='planned' else None
  plan_link=('opportunities',link.get('id'),link.get('rev')) if isinstance(link,dict) else None
  explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
  return [dep for dep in dependencies(key[0],row) if all(type(x) in (str,int) for x in dep) and (dep!=plan_link or dep in explicit)]
