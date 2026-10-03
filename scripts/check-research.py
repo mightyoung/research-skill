@@ -203,22 +203,36 @@ def linked_opportunities(history):
   if kind=='assertions' and isinstance(row.get('opportunity_id'),str):linked.setdefault(rid,set()).add(row['opportunity_id'])
  return linked
 
-def own_opportunity_pins(history,latest):
- """Assertions whose pinned chain (exact revisions) reaches their own opportunity: with the reverse link that is a stale cycle."""
- bad=[]
+def reverse_links(history,latest):
+ """Directions each active assertion feeds back into: every one it was linked to or acknowledged by."""
+ linked=linked_opportunities(history);out={}
  for (kind,rid),row in latest.items():
-  if kind!='assertions' or row.get('active') is False:continue
-  directions={('opportunities',oid) for oid in linked_opportunities(history).get(rid,())}
-  if not directions:continue
-  seen=set();todo=[(kind,rid,row['rev'])]
-  while todo:
-   current=todo.pop()
-   if current in seen or current not in history:continue
-   seen.add(current)
-   for dep in propagating(current[:2],history[current]):
-    if dep[:2] in directions:bad.append((kind,rid));todo=[];break
-    todo.append(dep)
- return bad
+  if kind=='assertions' and row.get('active') is not False:out[rid]=set(linked.get(rid,()))
+ for (kind,oid),row in latest.items():
+  if kind=='opportunities':
+   for aid,_ in acknowledged(row):
+    if aid in out:out[aid].add(oid)
+ return out
+
+def stale_cycles(history,latest):
+ """Assertions on a cycle of pinned dependencies (exact revisions) plus reverse links: never converges."""
+ back={}
+ for aid,oids in reverse_links(history,latest).items():
+  for oid in oids:back.setdefault(oid,[]).append(('assertions',aid,latest[('assertions',aid)]['rev']))
+ def edges(node):
+  out=[dep for dep in propagating(node[:2],history[node]) if dep in history]
+  return out+back.get(node[1],[]) if node[0]=='opportunities' else out
+ state={};bad=set()
+ for start in [(k[0],k[1],row['rev']) for k,row in latest.items()]:
+  if start in state:continue
+  stack=[(start,iter(edges(start)))];path=[start];state[start]=1
+  while stack:
+   node,children=stack[-1]
+   child=next(children,None)
+   if child is None:state[node]=2;stack.pop();path.pop();continue
+   if state.get(child)==1:bad.update(n[:2] for n in path[path.index(child):] if n[0]=='assertions')
+   elif child not in state:state[child]=1;stack.append((child,iter(edges(child))));path.append(child)
+ return sorted(bad)
 
 def find_stale(history,latest,extra_stale):
  stale=set(extra_stale)
@@ -247,11 +261,13 @@ def find_stale(history,latest,extra_stale):
   # stays stale forever, so only active assertions pass their own or inherited staleness back.
   for former in linked.get(key[1],()):
    opp=latest.get(('opportunities',former))
-   if opp is None:continue
-   if (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',former))
-   if row.get('active') is not False:
-    reverse.append((key,('opportunities',former)))
-    if row.get('review_status')=='needs_review':stale.add(('opportunities',former))
+   if opp is not None and (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',former))
+ # Own or inherited staleness of an active assertion reaches every direction linked to or acknowledging it.
+ for aid,oids in reverse_links(history,latest).items():
+  for oid in oids:
+   if ('opportunities',oid) not in latest:continue
+   reverse.append((('assertions',aid),('opportunities',oid)))
+   if latest[('assertions',aid)].get('review_status')=='needs_review':stale.add(('opportunities',oid))
  # Any acknowledged assertion that has since moved on.
  for key,row in latest.items():
   if key[0]=='opportunities' and any(('assertions',aid) in latest and latest[('assertions',aid)]['rev']!=rev for aid,rev in acknowledged(row)):stale.add(key)
@@ -301,7 +317,7 @@ def validate(root,strict_v2=False):
   elif kind=='opportunities': check_opportunity(row,label,history,error)
  check_identities(history,error)
  check_acyclic(history,error)
- for kind,rid in own_opportunity_pins(history,latest):error(f'{kind}/{rid}','assertion must not depend on its own opportunity (directly or via evidence); with opportunity_id that closes a stale cycle')
+ for kind,rid in stale_cycles(history,latest):error(f'{kind}/{rid}','assertion is on a stale cycle: its pinned dependencies reach a direction it is linked to or acknowledged by; remove that dependency')
  stale=find_stale(history,latest,extra_stale)
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:

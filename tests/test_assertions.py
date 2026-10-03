@@ -118,12 +118,13 @@ class AssertionTests(unittest.TestCase):
 
  def test_assertion_cannot_depend_on_its_own_opportunity(self):
   pin={'kind':'opportunities','id':'o1','rev':1}
-  d=self.data();d['assertions'][0]['depends_on']=[pin];r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('own opportunity',r.stdout)
-  d=self.data(evidence=[dict(pin,role='context')]);r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('own opportunity',r.stdout)
+  d=self.data();d['assertions'][0]['depends_on']=[pin];r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('stale cycle',r.stdout)
+  d=self.data(evidence=[dict(pin,role='context')]);r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('stale cycle',r.stdout)
   f=dict(schema_version=2,id='f1',rev=1,updated_at=STAMP,review_status='current',failure_type='resource_infeasible',cause='no labels',conditions={'data':'d','scale':'s','evaluation':'e','method_version':'m'},evidence=[pin],generalization_scope='this site',reopen_conditions=['labels arrive'])
-  d=self.data(evidence=[{'kind':'failures','id':'f1','rev':1,'role':'context'}]);d['failures']=[f];r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('own opportunity',r.stdout)
+  d=self.data(evidence=[{'kind':'failures','id':'f1','rev':1,'role':'context'}]);d['failures']=[f];r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('stale cycle',r.stdout)
   self.assertNotIn('could not complete',r.stdout+r.stderr)
-  d=self.data(evidence=[dict(pin,role='context')]);del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+  d=self.data(evidence=[dict(pin,role='context')]);del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertIn('stale cycle',r.stdout,'acknowledgement is also a reverse link')
+  del d['opportunities'][0]['assertion_review'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
  def test_retiring_assertion_reopens_direction_once(self):
   d=self.data();d['assertions'].append(dict(assertion(),rev=2,active=False,review_note='superseded by a narrower assertion'))
@@ -136,7 +137,7 @@ class AssertionTests(unittest.TestCase):
   d=self.data(evidence=[{'kind':'assertions','id':'a2','rev':1,'role':'context'}])
   a2=assertion();a2.update(id='a2');del a2['opportunity_id']
   d['assertions']=[a2,dict(a2,rev=2,updated_at=later,depends_on=[{'kind':'opportunities','id':'o1','rev':1}])]+d['assertions']
-  r=self.check(d);self.assertNotIn('own opportunity',r.stdout);self.assertIn('assertions/a1: needs_review',r.stdout)
+  r=self.check(d);self.assertNotIn('stale cycle',r.stdout);self.assertIn('assertions/a1: needs_review',r.stdout)
   r=self.check(d,'--mark-review');rows=(self.project/'research/assertions.jsonl').read_text().splitlines()
   self.assertEqual(json.loads(rows[-1])['review_status'],'needs_review','recovery marking must not be blocked')
 
@@ -186,7 +187,22 @@ class AssertionTests(unittest.TestCase):
  def test_assertion_cannot_depend_on_a_former_direction(self):
   d=self.data();o2=dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a1','rev':2}]);d['opportunities'].append(o2)
   d['assertions'].append(dict(assertion(),rev=2,opportunity_id='o2',depends_on=[{'kind':'opportunities','id':'o1','rev':1}]))
-  r=self.check(d);self.assertIn('own opportunity',r.stdout)
+  r=self.check(d);self.assertIn('stale cycle',r.stdout)
+
+ def test_acknowledging_direction_receives_inherited_staleness(self):
+  d=self.data(run(),state='supported',evidence=[SUP])
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a1','rev':1}]))
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+  d['experiments'].append(dict(copy.deepcopy(d['experiments'][1]),rev=2,review_status='needs_review'))
+  r=self.check(d);self.assertIn('opportunities/o1',r.stdout);self.assertIn('opportunities/o2',r.stdout)
+
+ def test_cross_direction_cycle_rejected(self):
+  d=self.data();d['assertions'][0]['depends_on']=[{'kind':'opportunities','id':'o2','rev':1}]
+  a2=dict(assertion(),id='a2',opportunity_id='o2',depends_on=[{'kind':'opportunities','id':'o1','rev':1}])
+  d['assertions'].append(a2)
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a2','rev':1}]))
+  r=self.check(d);self.assertIn('stale cycle',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
+  del d['assertions'][1]['depends_on'];r=self.check(d);self.assertNotIn('stale cycle',r.stdout);self.assertEqual(r.returncode,0,r.stdout)
 
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
