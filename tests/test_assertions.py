@@ -111,6 +111,15 @@ class AssertionTests(unittest.TestCase):
   r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('experiments/e1: needs_review',r.stdout)
   del d['experiments'][0]['depends_on'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
+ def test_assertion_cannot_depend_on_its_own_opportunity(self):
+  pin={'kind':'opportunities','id':'o1','rev':1}
+  d=self.data();d['assertions'][0]['depends_on']=[pin];r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('own opportunity',r.stdout)
+  d=self.data(evidence=[dict(pin,role='context')]);r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('own opportunity',r.stdout)
+  f=dict(schema_version=2,id='f1',rev=1,updated_at=STAMP,review_status='current',failure_type='resource_infeasible',cause='no labels',conditions={'data':'d','scale':'s','evaluation':'e','method_version':'m'},evidence=[pin],generalization_scope='this site',reopen_conditions=['labels arrive'])
+  d=self.data(evidence=[{'kind':'failures','id':'f1','rev':1,'role':'context'}]);d['failures']=[f];r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('own opportunity',r.stdout)
+  self.assertNotIn('could not complete',r.stdout+r.stderr)
+  d=self.data(evidence=[dict(pin,role='context')]);del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)

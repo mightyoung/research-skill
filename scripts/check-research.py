@@ -181,6 +181,32 @@ def check_acyclic(history,error):
    if incoming[dependent]==0: queue.append(dependent)
  if processed!=len(graph): error('dependencies','cycle in pinned provenance graph')
 
+def propagating(key,row):
+ """Pinned dependencies that carry staleness from target to dependent."""
+ # A plan's built-in opportunity pin records which direction it was designed for; revising the
+ # direction (a downstream decision) must not invalidate the evidence it was decided from.
+ # Explicit depends_on keeps normal freshness.
+ link=row.get('opportunity') if key[0]=='experiments' else None
+ plan_link=('opportunities',link.get('id'),link.get('rev')) if isinstance(link,dict) else None
+ explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
+ return [dep for dep in dependencies(key[0],row) if all(type(x) in (str,int) for x in dep) and (dep!=plan_link or dep in explicit)]
+
+def own_opportunity_pins(latest):
+ """Assertions whose pinned dependencies reach their own opportunity: with the reverse link that is a stale cycle."""
+ bad=[]
+ for key,row in latest.items():
+  oid=row.get('opportunity_id')
+  if key[0]!='assertions' or row.get('active') is False or not isinstance(oid,str):continue
+  seen=set();todo=[key]
+  while todo:
+   current=todo.pop()
+   if current in seen or current not in latest:continue
+   seen.add(current)
+   for dep in propagating(current,latest[current]):
+    if dep[:2]==('opportunities',oid):bad.append(key);todo=[];break
+    todo.append(dep[:2])
+ return bad
+
 def find_stale(latest,extra_stale):
  stale=set(extra_stale)
  # A newly recorded arXiv version makes older interpretations require comparison.
@@ -210,15 +236,7 @@ def find_stale(latest,extra_stale):
  while changed:
   changed=False
   for key,row in latest.items():
-   # A plan's built-in opportunity pin records which direction it was designed for; revising the
-   # direction (a downstream decision) must not invalidate the evidence it was decided from.
-   # Explicit depends_on keeps normal freshness.
-   link=row.get('opportunity') if key[0]=='experiments' else None
-   plan_link=('opportunities',link.get('id'),link.get('rev')) if isinstance(link,dict) else None
-   explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
-   for dep in dependencies(key[0],row):
-    if not all(type(x) in (str,int) for x in dep): continue
-    if dep==plan_link and dep not in explicit: continue
+   for dep in propagating(key,row):
     target=latest.get(dep[:2])
     if target and (target['rev']!=dep[2] or dep[:2] in stale) and key not in stale:
      stale.add(key);changed=True
@@ -259,6 +277,7 @@ def validate(root,strict_v2=False):
   elif kind=='opportunities': check_opportunity(row,label,history,error)
  check_identities(history,error)
  check_acyclic(history,error)
+ for kind,rid in own_opportunity_pins(latest):error(f'{kind}/{rid}','assertion must not depend on its own opportunity (directly or via evidence); with opportunity_id that closes a stale cycle')
  stale=find_stale(latest,extra_stale)
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:
