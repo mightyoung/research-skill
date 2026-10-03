@@ -317,6 +317,7 @@ UNREAD_ZH='未读|没读|未精读|未打开'
 UNREAD_NEAR=re.compile(
  rf'\bunread\b(?:\W+\w+){{0,3}}?\W+{PUB_EN}\b'
  rf'|\b{PUB_EN}\b(?:\W+\w+){{0,5}}?\W+(?:not|never)\W+(?:yet\W+)?(?:been\W+)?(?:body\W+)?read\b'
+ rf'|\b(?:not|never)\W+(?:yet\W+)?(?:been\W+)?(?:body\W+)?read\b(?:\W+\w+){{0,3}}?\W+{PUB_EN}\b'
  rf'|(?:{PUB_ZH}).?(?:{UNREAD_ZH})|(?:{UNREAD_ZH}).?(?:{PUB_ZH})',re.I)
 def admits_unread(value):return bool(UNREAD_NEAR.search(value))
 def unknowns(value,fail):

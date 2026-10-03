@@ -90,7 +90,7 @@ class V2Tests(unittest.TestCase):
    r=self.check(opp(decision));self.assertNotEqual(r.returncode,0);self.assertIn('critical unknown paper p2-v1 read only at abstract',r.stdout)
   r=self.check(opp('park'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
   r=self.check(opp(depth='targeted_body'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
-  for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],):
+  for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],['I have not read the paper'],['we have not yet read the patent claims']):
    d=opp(unknown=prose)
    if prose==['ok']:d['opportunities'][0]['change_decision_if']='The unread 2025 paper already scores revisions'
    r=self.check(d);self.assertEqual(r.returncode,0,r.stdout);self.assertIn('names an unread work in prose',r.stdout)
