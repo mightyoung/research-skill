@@ -126,6 +126,21 @@ class AssertionTests(unittest.TestCase):
   d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at='2026-10-02T18:00:00Z'))
   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
+ def test_own_opportunity_check_follows_pinned_revisions(self):
+  later='2026-10-02T12:00:00Z'
+  d=self.data(evidence=[{'kind':'assertions','id':'a2','rev':1,'role':'context'}])
+  a2=assertion();a2.update(id='a2');del a2['opportunity_id']
+  d['assertions']=[a2,dict(a2,rev=2,updated_at=later,depends_on=[{'kind':'opportunities','id':'o1','rev':1}])]+d['assertions']
+  r=self.check(d);self.assertNotIn('own opportunity',r.stdout);self.assertIn('assertions/a1: needs_review',r.stdout)
+  r=self.check(d,'--mark-review');rows=(self.project/'research/assertions.jsonl').read_text().splitlines()
+  self.assertEqual(json.loads(rows[-1])['review_status'],'needs_review','recovery marking must not be blocked')
+
+ def test_retired_needs_review_assertion_reopens_only_once(self):
+  d=self.data();d['assertions'].append(dict(assertion(),rev=2,updated_at='2026-10-02T12:00:00Z',review_status='needs_review',active=False,review_note='retired after review'))
+  r=self.check(d);self.assertIn('opportunities/o1',r.stdout)
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at='2026-10-02T18:00:00Z'))
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)

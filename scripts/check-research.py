@@ -191,20 +191,20 @@ def propagating(key,row):
  explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
  return [dep for dep in dependencies(key[0],row) if all(type(x) in (str,int) for x in dep) and (dep!=plan_link or dep in explicit)]
 
-def own_opportunity_pins(latest):
- """Assertions whose pinned dependencies reach their own opportunity: with the reverse link that is a stale cycle."""
+def own_opportunity_pins(history,latest):
+ """Assertions whose pinned chain (exact revisions) reaches their own opportunity: with the reverse link that is a stale cycle."""
  bad=[]
- for key,row in latest.items():
+ for (kind,rid),row in latest.items():
   oid=row.get('opportunity_id')
-  if key[0]!='assertions' or row.get('active') is False or not isinstance(oid,str):continue
-  seen=set();todo=[key]
+  if kind!='assertions' or row.get('active') is False or not isinstance(oid,str):continue
+  seen=set();todo=[(kind,rid,row['rev'])]
   while todo:
    current=todo.pop()
-   if current in seen or current not in latest:continue
+   if current in seen or current not in history:continue
    seen.add(current)
-   for dep in propagating(current,latest[current]):
-    if dep[:2]==('opportunities',oid):bad.append(key);todo=[];break
-    todo.append(dep[:2])
+   for dep in propagating(current[:2],history[current]):
+    if dep[:2]==('opportunities',oid):bad.append((kind,rid));todo=[];break
+    todo.append(dep)
  return bad
 
 def find_stale(latest,extra_stale):
@@ -233,7 +233,7 @@ def find_stale(latest,extra_stale):
   # Retiring is a judgment change (timestamp check below), but a retired record stays stale forever,
   # so only active assertions pass inherited staleness back.
   if row.get('active') is not False:reverse.append((key,('opportunities',oid)))
-  if row.get('review_status')=='needs_review' or timestamp(row.get('updated_at')) and timestamp(opp.get('updated_at')) and dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))>dt.datetime.fromisoformat(opp['updated_at'].replace('Z','+00:00')):stale.add(('opportunities',oid))
+  if row.get('active') is not False and row.get('review_status')=='needs_review' or timestamp(row.get('updated_at')) and timestamp(opp.get('updated_at')) and dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))>dt.datetime.fromisoformat(opp['updated_at'].replace('Z','+00:00')):stale.add(('opportunities',oid))
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:
@@ -280,7 +280,7 @@ def validate(root,strict_v2=False):
   elif kind=='opportunities': check_opportunity(row,label,history,error)
  check_identities(history,error)
  check_acyclic(history,error)
- for kind,rid in own_opportunity_pins(latest):error(f'{kind}/{rid}','assertion must not depend on its own opportunity (directly or via evidence); with opportunity_id that closes a stale cycle')
+ for kind,rid in own_opportunity_pins(history,latest):error(f'{kind}/{rid}','assertion must not depend on its own opportunity (directly or via evidence); with opportunity_id that closes a stale cycle')
  stale=find_stale(latest,extra_stale)
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:
