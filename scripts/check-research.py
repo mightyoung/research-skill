@@ -270,7 +270,8 @@ def find_stale(history,latest,extra_stale):
    if latest[('assertions',aid)].get('review_status')=='needs_review':stale.add(('opportunities',oid))
  # Any acknowledged assertion that has since moved on.
  for key,row in latest.items():
-  if key[0]=='opportunities' and any(('assertions',aid) in latest and latest[('assertions',aid)]['rev']!=rev for aid,rev in acknowledged(row)):stale.add(key)
+  acks=acknowledged(row) if key[0]=='opportunities' else set()
+  if any(('assertions',aid) in latest and (aid,latest[('assertions',aid)]['rev']) not in acks for aid,_ in acks):stale.add(key)
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:

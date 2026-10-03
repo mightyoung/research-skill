@@ -204,6 +204,11 @@ class AssertionTests(unittest.TestCase):
   r=self.check(d);self.assertIn('stale cycle',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
   del d['assertions'][1]['depends_on'];r=self.check(d);self.assertNotIn('stale cycle',r.stdout);self.assertEqual(r.returncode,0,r.stdout)
 
+ def test_history_in_acknowledgement_list_is_fine_when_latest_present(self):
+  d=self.data();d['assertions'].append(dict(assertion(),rev=2))
+  d['opportunities'][0]['assertion_review']=[{'id':'a1','rev':1},{'id':'a1','rev':2}]
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)
