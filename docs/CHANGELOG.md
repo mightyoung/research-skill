@@ -8,11 +8,15 @@ README 只保留当前用法；各版本的改动说明与验证记录按原文�
 
 新增 V2 日志 `assertions`：不挂论文，`assertion_state` 为 untested/supported/refuted/inconclusive/withdrawn，证据带 `role`（supports/refutes/context）。校验器只检查状态与所引证据一致：role 不得与运行结果矛盾，supported/refuted 需具辨别力的完成运行（supported 也可用全文论文原述），inconclusive 需结果为 inconclusive 的已执行运行或冲突的决定性证据（冲突时不得标 supported/refuted），withdrawn 需理由，untested 不得带有足以定状态的支持或反驳证据；证据变化沿依赖传递待复核；主张以不固定修订的 `opportunity_id` 关联方向，方向用 `assertion_review:[{id,rev}]` 确认据以决定的主张修订（不进依赖图），曾关联过的方向未确认主张最新修订、确认过的主张已更新（含移走或解除关联）或主张待复核（含继承，传给关联过或确认过它的每个方向）时，方向在同一次校验中进入待复核，固定依赖与反向关联合并成环则报错；计划内置的方向固定引用不再向下传递待复核（显式 depends_on 照常）（此前任何方向修订都会让已执行的运行和主张失效，回流第 3 步因此无法收敛）；交付物可引用 `[assertions/id@rev]`。新增 references/result-feedback.md 与 SKILL.md 路由"实验结果回来"；results 与 handoff 模板各加一栏。旧项目缺该日志不报错；新初始化建空文件。
 
-## 未发布：未读近邻门槛
+## V6.7 未读近邻门槛
 
 起因：v6.6 不点名对照运行里，唯一 continue 的候选列出了三篇已读正文的近邻、通过了近邻正文门槛，但最可能覆盖它的工作（2025 视频入库配置论文）只以"未读"文字写在 `critical_unknown` 和 `change_decision_if`，没有登记为论文，门槛被绕过。
 
-`critical_unknown` 条目可写成 `{paper:{id,rev},gap}`，钉住的论文参与外键与复核传播；continue/revise/ready 的当前快照中这些论文须读到正文，否则报错。文字条目或 `change_decision_if` 承认某篇文献未读时默认提示、`--strict-v2` 报错：未读字样必须紧挨着文献词（英文 `unread … paper` 或 `not/n't … read … paper` 相隔不超过 3 个词，`paper … was/has not read` 文献词与助动词之间不超过 2 个词；中文"专利正文未读""未读的论文"这类最多隔 1 个字），这样研究对象本身就是"未读消息"之类的领域用语不会被误判。文字检查是启发式，只能拦下诚实的写法，挡不住刻意改写，也会漏掉只带"方法"等通用词的写法（如"Chameleon 未读的在线适应方法"）和更远距离的表述；关键词规则的边角误判/漏判记为已知局限，不再逐条追加规则；它的作用是把结构化登记变成最省力的路径。park/abandon 不受限，只检查当前有效快照。153 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过。
+结构化未知（#14）：`critical_unknown` 条目可写成 `{paper:{id,rev},gap}`，钉住的论文参与外键与复核传播；continue/revise/ready 的当前快照中这些论文须读到正文，否则报错。park/abandon 不受限，只检查当前有效快照，历史修订可通过追加记录修复。格式错误的条目（含非字符串 id、非整数 rev、非列表的 `critical_unknown`）报格式错误，不再中止整次校验。
+
+文字兜底（#14）：`critical_unknown` 的文字条目、结构化条目的 `gap` 或 `change_decision_if` 承认某篇文献未读时，默认提示、`--strict-v2` 报错。未读字样必须紧挨着文献词（英文 `unread … paper` 或 `not/n't … read … paper` 相隔不超过 3 个词，`paper … was/has not read` 文献词与助动词之间不超过 2 个词；中文"专利正文未读""未读的论文"这类最多隔 1 个字），这样研究对象本身就是"未读消息"之类的领域用语不会被误判。`next_search.query` 是检索词，有意不纳入。文字检查是启发式，只能拦下诚实的写法，挡不住刻意改写，也会漏掉只带"方法"等通用词的写法（如"Chameleon 未读的在线适应方法"）和更远距离的表述；关键词规则的边角误判/漏判记为已知局限，不再逐条追加规则；它的作用是把结构化登记变成最省力的路径。
+
+兼容：无新必填日志或依赖。老项目里 continue/revise 的机会若在文字里承认未读某篇文献，`--strict-v2` 下需要把它登记为论文并读到正文，或改为 park。v6.6 不点名运行的 `o-measure` 在本版 `--strict-v2` 下 FAIL（v6.6 下 PASS）。153 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过；结构校验不认证研究质量。
 
 ## V6.6 发现产出与近邻正文门槛
 
