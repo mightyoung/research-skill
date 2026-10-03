@@ -314,10 +314,13 @@ def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
 PUB_EN=r'(?:paper|article|preprint|patent|publication|section|appendix|claims?|body|full[- ]text)s?'
 PUB_ZH='论文|文献|正文|全文|专利|章节|方法节|实验节|附录|权利要求|预印本'
 UNREAD_ZH='未读|没读|未精读|未打开'
+NEG=r"(?:\bnot\b|\bnever\b|n['’]t\b)"
+AUX=r"(?:is|are|was|were|has|have|had)"
+READ_TAIL=r"\W+(?:yet\W+)?(?:been\W+)?(?:body\W+)?read\b"
 UNREAD_NEAR=re.compile(
  rf'\bunread\b(?:\W+\w+){{0,3}}?\W+{PUB_EN}\b'
- rf'|\b{PUB_EN}\b(?:\W+\w+){{0,5}}?\W+(?:not|never)\W+(?:yet\W+)?(?:been\W+)?(?:body\W+)?read\b'
- rf'|\b(?:not|never)\W+(?:yet\W+)?(?:been\W+)?(?:body\W+)?read\b(?:\W+\w+){{0,3}}?\W+{PUB_EN}\b'
+ rf'|\b{PUB_EN}\b(?:\W+\w+){{0,2}}?\W+{AUX}(?:\W+{NEG}|{NEG}){READ_TAIL}'
+ rf'|{NEG}{READ_TAIL}(?:\W+\w+){{0,3}}?\W+{PUB_EN}\b'
  rf'|(?:{PUB_ZH}).?(?:{UNREAD_ZH})|(?:{UNREAD_ZH}).?(?:{PUB_ZH})',re.I)
 def admits_unread(value):return bool(UNREAD_NEAR.search(value))
 def unknowns(value,fail):

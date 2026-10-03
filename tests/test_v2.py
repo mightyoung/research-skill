@@ -90,7 +90,7 @@ class V2Tests(unittest.TestCase):
    r=self.check(opp(decision));self.assertNotEqual(r.returncode,0);self.assertIn('critical unknown paper p2-v1 read only at abstract',r.stdout)
   r=self.check(opp('park'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
   r=self.check(opp(depth='targeted_body'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
-  for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],['I have not read the paper'],['we have not yet read the patent claims']):
+  for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],['I have not read the paper'],['we have not yet read the patent claims'],["I haven't read the paper"],['The paper hasn’t been read']):
    d=opp(unknown=prose)
    if prose==['ok']:d['opportunities'][0]['change_decision_if']='The unread 2025 paper already scores revisions'
    r=self.check(d);self.assertEqual(r.returncode,0,r.stdout);self.assertIn('names an unread work in prose',r.stdout)
@@ -111,7 +111,8 @@ class V2Tests(unittest.TestCase):
   # Domains may study unread content itself; only reading-context admissions count.
   for domain in (['whether unread messages alter response behavior'],['未读消息是否影响用户行为'],['users who have not read the notice'],
                  ['Does the paper measure whether unread messages alter response behavior?'],
-                 ['The paper was read; whether unread messages alter response behavior remains unknown'],['论文研究未读消息的提醒效果']):
+                 ['The paper was read; whether unread messages alter response behavior remains unknown'],['论文研究未读消息的提醒效果'],
+                 ['The paper studies users who have not read messages']):
    r=self.check(opp(depth='full_text',unknown=domain),'--strict-v2');self.assertEqual(r.returncode,0,(domain,r.stdout))
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
