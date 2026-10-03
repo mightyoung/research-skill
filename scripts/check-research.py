@@ -230,10 +230,12 @@ def find_stale(latest,extra_stale):
   oid=row.get('opportunity_id')
   if key[0]!='assertions' or not isinstance(oid,str) or ('opportunities',oid) not in latest:continue
   opp=latest[('opportunities',oid)]
-  # Retiring is a judgment change (timestamp check below), but a retired record stays stale forever,
+  # Retiring is a judgment change (acknowledgement check below), but a retired record stays stale forever,
   # so only active assertions pass inherited staleness back.
   if row.get('active') is not False:reverse.append((key,('opportunities',oid)))
-  if row.get('active') is not False and row.get('review_status')=='needs_review' or timestamp(row.get('updated_at')) and timestamp(opp.get('updated_at')) and dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))>dt.datetime.fromisoformat(opp['updated_at'].replace('Z','+00:00')):stale.add(('opportunities',oid))
+  # The direction must name the exact assertion revision it decided on; timestamps can tie.
+  acked={(a.get('id'),a.get('rev')) for a in opp.get('assertion_review',[]) if isinstance(a,dict)} if isinstance(opp.get('assertion_review'),list) else set()
+  if row.get('active') is not False and row.get('review_status')=='needs_review' or (key[1],row['rev']) not in acked:stale.add(('opportunities',oid))
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:

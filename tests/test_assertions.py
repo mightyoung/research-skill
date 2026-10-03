@@ -19,7 +19,9 @@ class AssertionTests(unittest.TestCase):
   for kind,rows in data.items():(self.project/'research'/f'{kind}.jsonl').write_text(''.join(json.dumps(x,ensure_ascii=False)+'\n' for x in rows),encoding='utf-8')
   return subprocess.run([sys.executable,str(ROOT/'scripts/check-research.py'),str(self.project),*args],capture_output=True,text=True)
  def data(self,*runs,**assertion_args):
-  d=bundle();d['experiments']=[plan(),*runs];d['assertions']=[assertion(**assertion_args)];return d
+  d=bundle();d['experiments']=[plan(),*runs];d['assertions']=[assertion(**assertion_args)];d['opportunities'][0]['assertion_review']=[{'id':'a1','rev':1}];return d
+ def acknowledge(self,d,rev):
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][-1]),rev=d['opportunities'][-1]['rev']+1,assertion_review=[{'id':'a1','rev':rev}]))
 
  def test_untested_assertion_needs_no_paper(self):
   r=self.check(self.data(),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
@@ -71,18 +73,21 @@ class AssertionTests(unittest.TestCase):
    r=self.check(d);self.assertNotEqual(r.returncode,0,access);self.assertIn('supported',r.stdout)
    d['assertions'][0]['assertion_state']='untested';r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
- def test_newer_assertion_reopens_its_opportunity_without_cycles(self):
+ def test_unacknowledged_assertion_revision_reopens_direction(self):
   for value in (['o1'],{'id':'o1','rev':1},'',2,'missing'):
    r=self.check(self.data(opportunity_id=value));self.assertNotEqual(r.returncode,0,value);self.assertIn('opportunity_id',r.stdout)
   d=self.data();del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
-  later='2026-10-02T12:00:00Z';evening='2026-10-02T18:00:00Z'
-  d=self.data(run('refuting'),evidence=[dict(SUP,role='refutes')],state='refuted',rev=2,updated_at=later)
+  for value in ('a1',[{'id':'a1'}],[{'id':'a1','rev':'1'}],[{'id':'a1','rev':9}]):
+   d=self.data();d['opportunities'][0]['assertion_review']=value;r=self.check(d);self.assertNotEqual(r.returncode,0,value);self.assertIn('assertion_review',r.stdout)
+  d=self.data();del d['opportunities'][0]['assertion_review'];r=self.check(d);self.assertIn('opportunities/o1',r.stdout)
+  # Same updated_at on every record: acknowledgement, not timestamp order, decides.
+  d=self.data(run('refuting'),evidence=[dict(SUP,role='refutes')],state='refuted',rev=2)
   d['assertions'].insert(0,assertion());self.assertEqual(d['experiments'][0]['opportunity'],{'id':'o1','rev':1})  # default plan shape stays pinned
   r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('opportunities/o1',r.stdout)
   for chain in ('experiments/e1','experiments/r1','assertions/a1'):self.assertNotIn(chain+': needs_review',r.stdout)
-  revised=dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at=evening,status='candidate',decision='revise');d['opportunities'].append(revised)
+  self.acknowledge(d,2);d['opportunities'][-1].update(status='candidate',decision='revise')
   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
-  d['assertions'][-1]['updated_at']=later;d['assertions'][-1]['review_status']='needs_review'
+  d['assertions'][-1]['review_status']='needs_review'
   r=self.check(d);self.assertIn('opportunities/o1',r.stdout)
 
  def test_conflicting_decisive_runs_force_inconclusive(self):
@@ -121,9 +126,9 @@ class AssertionTests(unittest.TestCase):
   d=self.data(evidence=[dict(pin,role='context')]);del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
  def test_retiring_assertion_reopens_direction_once(self):
-  d=self.data();d['assertions'].append(dict(assertion(),rev=2,updated_at='2026-10-02T12:00:00Z',active=False,review_note='superseded by a narrower assertion'))
+  d=self.data();d['assertions'].append(dict(assertion(),rev=2,active=False,review_note='superseded by a narrower assertion'))
   r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('opportunities/o1',r.stdout)
-  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at='2026-10-02T18:00:00Z'))
+  self.acknowledge(d,2)
   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
  def test_own_opportunity_check_follows_pinned_revisions(self):
@@ -136,9 +141,9 @@ class AssertionTests(unittest.TestCase):
   self.assertEqual(json.loads(rows[-1])['review_status'],'needs_review','recovery marking must not be blocked')
 
  def test_retired_needs_review_assertion_reopens_only_once(self):
-  d=self.data();d['assertions'].append(dict(assertion(),rev=2,updated_at='2026-10-02T12:00:00Z',review_status='needs_review',active=False,review_note='retired after review'))
+  d=self.data();d['assertions'].append(dict(assertion(),rev=2,review_status='needs_review',active=False,review_note='retired after review'))
   r=self.check(d);self.assertIn('opportunities/o1',r.stdout)
-  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at='2026-10-02T18:00:00Z'))
+  self.acknowledge(d,2)
   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
  def test_init_creates_assertions_journal(self):

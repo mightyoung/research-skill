@@ -169,6 +169,8 @@ def validate_record(project,kind,row,history,current,strict=False):
   why_now(row,fail);attackability(row,fail)
  elif kind=='opportunities':
   searches=ref_list('search_refs','searches');ref_list('tension_refs','tensions')
+  # Acknowledged assertion revisions: deliberately not a dependency, so it cannot form a stale cycle.
+  if 'assertion_review' in row:ref_list('assertion_review','assertions')
   enum('novelty',{'provisional','unknown','covered'});enum('decision',{'continue','revise','park','abandon'})
   if not strings(row.get('critical_unknown')):fail('critical_unknown list required')
   require_string('change_decision_if');require_string('importance');why_now(row,fail);attackability(row,fail)
