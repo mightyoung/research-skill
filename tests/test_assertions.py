@@ -48,6 +48,9 @@ class AssertionTests(unittest.TestCase):
   r=self.check(self.data(state='refuted'));self.assertNotEqual(r.returncode,0);self.assertIn('refuted',r.stdout)
   r=self.check(self.data(run('inconclusive',False),state='inconclusive',evidence=[dict(SUP,role='context')]));self.assertEqual(r.returncode,0,r.stdout)
   r=self.check(self.data(state='inconclusive'));self.assertNotEqual(r.returncode,0);self.assertIn('inconclusive',r.stdout)
+  for decisive in (run('supporting'),run('refuting')):
+   role='supports' if decisive['actual']['result']=='supporting' else 'refutes'
+   r=self.check(self.data(decisive,state='inconclusive',evidence=[dict(SUP,role=role)]));self.assertNotEqual(r.returncode,0,decisive);self.assertIn('inconclusive',r.stdout)
 
  def test_withdrawn_keeps_history_with_reason(self):
   r=self.check(self.data(state='withdrawn'));self.assertNotEqual(r.returncode,0);self.assertIn('withdrawn',r.stdout)

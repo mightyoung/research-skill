@@ -259,7 +259,7 @@ def validate_record(project,kind,row,history,current,strict=False):
   state=row.get('assertion_state')
   if state=='supported' and not (decisive('supports','supporting') or any(r=='supports' and k=='claims' and t.get('schema_version')==2 and t.get('basis')=='full_text' and t.get('evidence_kind')=='paper_statement' for r,k,t,_ in linked)):fail('supported needs a discriminating supporting run or a full-text paper statement')
   if state=='refuted' and not decisive('refutes','refuting'):fail('refuted needs a discriminating refuting run')
-  if state=='inconclusive' and not any(a for *_,a in linked):fail('inconclusive needs an executed run')
+  if state=='inconclusive' and not any(a.get('result')=='inconclusive' for *_,a in linked):fail('inconclusive needs an executed run whose result is inconclusive')
   if state=='withdrawn' and not text(row.get('review_note')):fail('withdrawn requires review_note')
  return errors,notes,stale
 
