@@ -77,6 +77,52 @@ class V2Tests(unittest.TestCase):
   fixed=copy.deepcopy(old);fixed.update(rev=2,decisive_neighbors=[{'id':'p1-v1','rev':2}],supports=[{'id':claim['id'],'rev':2}])
   d['papers'].append(read);d['claims'].append(claim);d['opportunities'].append(fixed)
   r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+ def test_critical_unknown_unread_neighbor_blocks_actionable_decision(self):
+  def opp(decision='continue',depth='abstract',unknown=None,**changes):
+   d=bundle();other=copy.deepcopy(d['papers'][0])
+   other.update(id='p2-v1',work_id='w2',arxiv_id='2301.11306',title='Possible covering work',reading_depth=depth)
+   if depth=='targeted_body':other['reading_scope']='evaluation section read; appendix not read'
+   d['papers'].append(other)
+   o=d['opportunities'][0];o.update(status='candidate',decision=decision,**changes)
+   o['critical_unknown']=unknown if unknown is not None else [{'paper':{'id':'p2-v1','rev':1},'gap':'may already score human revisions'}]
+   return d
+  for decision in ('continue','revise'):
+   r=self.check(opp(decision));self.assertNotEqual(r.returncode,0);self.assertIn('critical unknown paper p2-v1 read only at abstract',r.stdout)
+  r=self.check(opp('park'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  r=self.check(opp(depth='targeted_body'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  # The gap of a structured item is prose too: a body-read pin cannot hide another unread work.
+  d=opp(depth='full_text',unknown=[{'paper':{'id':'p2-v1','rev':1},'gap':'the follow-up paper was not read'}])
+  r=self.check(d,'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('names an unread work in prose',r.stdout)
+  for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],['I have not read the paper'],['we have not yet read the patent claims'],["I haven't read the paper"],['The paper hasn’t been read']):
+   d=opp(unknown=prose)
+   if prose==['ok']:d['opportunities'][0]['change_decision_if']='The unread 2025 paper already scores revisions'
+   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout);self.assertIn('names an unread work in prose',r.stdout)
+   r=self.check(d,'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('names an unread work in prose',r.stdout)
+  r=self.check(opp('park',unknown=['the 2025 paper was not read']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  r=self.check(opp(unknown=['strong baseline reproduction pending']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  for bad in ([{'paper':{'id':'p2-v1'},'gap':'x'}],[{'paper':{'id':'p2-v1','rev':1}}],[{'gap':'x'}],[3]):
+   r=self.check(opp(unknown=bad));self.assertNotEqual(r.returncode,0,bad);self.assertIn('critical_unknown',r.stdout)
+  r=self.check(opp(unknown=[{'paper':{'id':'nope','rev':1},'gap':'x'}]));self.assertNotEqual(r.returncode,0);self.assertIn('missing foreign key',r.stdout)
+  # Malformed values must surface as schema errors, not crash the whole validation.
+  for bad in (None,3,'text'):
+   d=opp();d['opportunities'][0]['critical_unknown']=bad
+   r=self.check(d);self.assertNotEqual(r.returncode,0,bad);self.assertIn('critical_unknown list required',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
+  # Unhashable ids inside structured refs must be schema errors, not a crash during lookup.
+  for field,value,message in (('critical_unknown',[{'paper':{'id':[],'rev':1},'gap':'x'}],'critical_unknown'),
+                              ('decisive_neighbors',[{'id':[],'rev':1}],'decisive_neighbors'),
+                              ('decisive_neighbors',[{'id':'p1-v1','rev':[1]}],'decisive_neighbors')):
+   d=opp();d['opportunities'][0][field]=value
+   r=self.check(d);self.assertNotEqual(r.returncode,0,value);self.assertIn(message,r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
+  d=opp();d['opportunities'][0]['change_decision_if']=None
+  r=self.check(d);self.assertNotIn('could not complete',r.stdout+r.stderr);self.assertIn('change_decision_if',r.stdout)
+  # A body-read finding that something was not reported is not an unread work.
+  r=self.check(opp(depth='full_text',unknown=['该近邻正文未报告训练成本']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  # Domains may study unread content itself; only reading-context admissions count.
+  for domain in (['whether unread messages alter response behavior'],['未读消息是否影响用户行为'],['users who have not read the notice'],
+                 ['Does the paper measure whether unread messages alter response behavior?'],
+                 ['The paper was read; whether unread messages alter response behavior remains unknown'],['论文研究未读消息的提醒效果'],
+                 ['The paper studies users who have not read messages']):
+   r=self.check(opp(depth='full_text',unknown=domain),'--strict-v2');self.assertEqual(r.returncode,0,(domain,r.stdout))
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)
