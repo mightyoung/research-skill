@@ -6,7 +6,7 @@ README 只保留当前用法；各版本的改动说明与验证记录按原文�
 
 起因：claims 必须挂在论文固定版本下，研究者自己准备论证的主张没有记录位置；"结论 → 支持它的运行 → 计划 → 论文"接不上，实验结果回来后也没有改判断的路由。
 
-新增 V2 日志 `assertions`：不挂论文，`assertion_state` 为 untested/supported/refuted/inconclusive/withdrawn，证据带 `role`（supports/refutes/context）。校验器只检查状态与所引证据一致：role 不得与运行结果矛盾，supported/refuted 需具辨别力的完成运行（supported 也可用全文论文原述），inconclusive 需结果为 inconclusive 的已执行运行或冲突的决定性证据（冲突时不得标 supported/refuted），withdrawn 需理由，untested 不得带有足以定状态的支持或反驳证据；证据变化沿依赖传递待复核；主张以不固定修订的 `opportunity_id` 关联方向，方向用 `assertion_review:[{id,rev}]` 确认据以决定的主张修订（不进依赖图），最新修订未确认、确认过的主张已更新（含移走或解除关联）或主张待复核（含继承）时，方向在同一次校验中进入待复核，主张直接或间接依赖自己的方向则报错；计划内置的方向固定引用不再向下传递待复核（显式 depends_on 照常）（此前任何方向修订都会让已执行的运行和主张失效，回流第 3 步因此无法收敛）；交付物可引用 `[assertions/id@rev]`。新增 references/result-feedback.md 与 SKILL.md 路由"实验结果回来"；results 与 handoff 模板各加一栏。旧项目缺该日志不报错；新初始化建空文件。
+新增 V2 日志 `assertions`：不挂论文，`assertion_state` 为 untested/supported/refuted/inconclusive/withdrawn，证据带 `role`（supports/refutes/context）。校验器只检查状态与所引证据一致：role 不得与运行结果矛盾，supported/refuted 需具辨别力的完成运行（supported 也可用全文论文原述），inconclusive 需结果为 inconclusive 的已执行运行或冲突的决定性证据（冲突时不得标 supported/refuted），withdrawn 需理由，untested 不得带有足以定状态的支持或反驳证据；证据变化沿依赖传递待复核；主张以不固定修订的 `opportunity_id` 关联方向，方向用 `assertion_review:[{id,rev}]` 确认据以决定的主张修订（不进依赖图），曾关联过的方向未确认主张最新修订、确认过的主张已更新（含移走或解除关联）或主张待复核（含继承）时，方向在同一次校验中进入待复核，主张直接或间接依赖自己的方向则报错；计划内置的方向固定引用不再向下传递待复核（显式 depends_on 照常）（此前任何方向修订都会让已执行的运行和主张失效，回流第 3 步因此无法收敛）；交付物可引用 `[assertions/id@rev]`。新增 references/result-feedback.md 与 SKILL.md 路由"实验结果回来"；results 与 handoff 模板各加一栏。旧项目缺该日志不报错；新初始化建空文件。
 
 ## 未发布：发现产出（P0/P1）
 

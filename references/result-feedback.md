@@ -19,7 +19,7 @@
    - `untested`：还没有能定状态的证据。一旦引用了足以判定支持或反驳的证据，就必须改状态；只作背景的证据标 `context`。
    - `withdrawn`：不是被实验推翻，而是近邻已覆盖、问题重构等原因不再主张；必须写 review_note。旧 rev 保留。
    - `does_not_support` 每次重写：这次结果仍然不能支持的更强说法。
-3. **再改方向。** 主张用 `opportunity_id` 指向所属方向；主张有新修订后，该方向会被标为待复核，直到 opportunity 追加 rev，并在 `assertion_review` 里写明据以决定的主张修订（如 `{id:"a1",rev:2}`）：decision 在 continue / revise / park / abandon 中选，并更新 critical_unknown 与 change_decision_if。一次阴性不否定整个方向，除非它正好测的是方向成立的必要条件。
+3. **再改方向。** 主张用 `opportunity_id` 指向所属方向；主张有新修订后，该方向会被标为待复核，直到 opportunity 追加 rev，并在 `assertion_review` 里写明据以决定的主张修订（如 `{id:"a1",rev:2}`）；主张移到别的方向或解除关联时，原来的方向也要确认这一修订：decision 在 continue / revise / park / abandon 中选，并更新 critical_unknown 与 change_decision_if。一次阴性不否定整个方向，除非它正好测的是方向成立的必要条件。
 4. **跑校验。** `check-research.py --mark-review`：被移动或待复核的证据会把依赖它的主张、方向和交付物引用一起标为待复核。
 5. **写进交付物。** 报告、提纲中的结论句引用 `[assertions/id@rev]`，数字引用 `[experiments/id@rev]`；交接写明哪些主张状态变了、为什么。
 

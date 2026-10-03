@@ -212,7 +212,7 @@ def own_opportunity_pins(history,latest):
     todo.append(dep)
  return bad
 
-def find_stale(latest,extra_stale):
+def find_stale(history,latest,extra_stale):
  stale=set(extra_stale)
  # A newly recorded arXiv version makes older interpretations require comparison.
  newest={}
@@ -230,17 +230,24 @@ def find_stale(latest,extra_stale):
   if key[0]=='sources' and row.get('status') in ('retracted','unavailable') or key[0]=='papers' and row.get('publication_status')=='retracted' or row.get('review_status')=='needs_review' or key[0]=='opportunities' and row.get('status')=='needs_review' or row.get('active') is False or key[0]=='handoffs' and row.get('step_state')=='needs_review': stale.add(key)
  # Reverse link: a re-judged or stale assertion re-opens its (unpinned) opportunity decision.
  # Safe inside the closure because no built-in edge propagates from opportunities back down.
+ linked={}
+ for (kind,rid,_),row in history.items():
+  if kind=='assertions' and isinstance(row.get('opportunity_id'),str):linked.setdefault(rid,set()).add(row['opportunity_id'])
  reverse=[]
  for key,row in latest.items():
+  if key[0]!='assertions':continue
   oid=row.get('opportunity_id')
-  if key[0]!='assertions' or not isinstance(oid,str) or ('opportunities',oid) not in latest:continue
-  opp=latest[('opportunities',oid)]
   # Retiring is a judgment change (acknowledgement check below), but a retired record stays stale forever,
-  # so only active assertions pass inherited staleness back.
-  if row.get('active') is not False:reverse.append((key,('opportunities',oid)))
-  # The direction must name the exact assertion revision it decided on; timestamps can tie.
-  if row.get('active') is not False and row.get('review_status')=='needs_review' or (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',oid))
- # Any acknowledged assertion that has since moved on, including one detached or moved elsewhere.
+  # so only active assertions pass inherited staleness back to their current direction.
+  if row.get('active') is not False and isinstance(oid,str) and ('opportunities',oid) in latest:
+   reverse.append((key,('opportunities',oid)))
+   if row.get('review_status')=='needs_review':stale.add(('opportunities',oid))
+  # Every direction this assertion was ever linked to must name its latest revision; timestamps can tie,
+  # and a moved or detached assertion must still reopen the direction it left.
+  for former in linked.get(key[1],()):
+   opp=latest.get(('opportunities',former))
+   if opp is not None and (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',former))
+ # Any acknowledged assertion that has since moved on.
  for key,row in latest.items():
   if key[0]=='opportunities' and any(('assertions',aid) in latest and latest[('assertions',aid)]['rev']!=rev for aid,rev in acknowledged(row)):stale.add(key)
  # Propagate staleness to everything pinned to a moved or stale record.
@@ -290,7 +297,7 @@ def validate(root,strict_v2=False):
  check_identities(history,error)
  check_acyclic(history,error)
  for kind,rid in own_opportunity_pins(history,latest):error(f'{kind}/{rid}','assertion must not depend on its own opportunity (directly or via evidence); with opportunity_id that closes a stale cycle')
- stale=find_stale(latest,extra_stale)
+ stale=find_stale(history,latest,extra_stale)
  for kind,rid in sorted(stale):
   if kind!='sources' and latest[(kind,rid)].get('active') is not False:
    error(f'{kind}/{rid}','needs_review: evidence changed, unavailable, retracted or dependent on stale evidence')

@@ -154,7 +154,15 @@ class AssertionTests(unittest.TestCase):
    d['assertions'].append(moved)
    r=self.check(d);self.assertIn('opportunities/o1',r.stdout,change);self.assertNotIn('opportunities/o2',r.stdout)
    d['opportunities'].insert(1,dict(copy.deepcopy(d['opportunities'][0]),rev=2,assertion_review=[]))
+   r=self.check(d);self.assertIn('opportunities/o1',r.stdout,'a formerly linked direction must acknowledge the move')
+   d['opportunities'][1]['assertion_review']=[{'id':'a1','rev':2}]
    r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
+ def test_never_acknowledged_former_link_still_reopens(self):
+  d=self.data();del d['opportunities'][0]['assertion_review']
+  o2=dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a1','rev':2}]);d['opportunities'].append(o2)
+  d['assertions'].append(dict(assertion(),rev=2,opportunity_id='o2'))
+  r=self.check(d);self.assertIn('opportunities/o1',r.stdout);self.assertNotIn('opportunities/o2',r.stdout)
 
  def test_malformed_acknowledgement_reported_not_crashing(self):
   for value in ([{'id':['a1'],'rev':1}],[{'id':'a1','rev':{'n':1}}]):
