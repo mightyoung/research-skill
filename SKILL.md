@@ -56,6 +56,7 @@ description: Use when entering a research field, mapping its frontier, finding d
 - 用户给的机制是待反驳的先验，不能预设为研究边界或答案；review 才围绕明确主张组织反证。
 - 优先解释路线为何演进、瓶颈为何优先。推荐前精读决定性近邻的关键正文，把"数据已支持 / 需新增标注 / 待核实"转成第一个可执行探查。
 - **近邻正文门槛**：决定为 continue/revise（或 ready）的机会必须在 `decisive_neighbors` 列出决定性近邻论文，且每篇读到正文（targeted_body/full_text）；近邻只读到摘要时，先去读正文，否则该机会只能 park。校验器对缺失或只读摘要的近邻报错（缺字段在默认模式只提示）。
+- **未读近邻不能藏在未知里**：怀疑可能覆盖主张、但还没读到正文的工作，先登记为 paper（metadata/abstract 即可），在 `critical_unknown` 写成 `{paper:{id,rev},gap}`；continue/revise 时它必须已读到正文，否则 park。`critical_unknown` 或 `change_decision_if` 的文字里承认"未读"某项工作，默认模式提示、`--strict-v2` 报错。
 - 资源未知不阻断探索，也不等于可以开实验。创新不强制是新算法，不用 proposed mechanism 代替具体贡献。
 - 目标真值是人工成本、修正或行为这类没有数据集会记录的量时，构造测量（模拟用户、小规模试标、受控合成材料），不要只找现成数据。
 - 方向先查最强竞争解释和会推翻首选方向的证据；没有进攻路径就停放；预算耗尽写明未解决。

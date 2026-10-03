@@ -67,7 +67,10 @@ def refs(kind,row):
  def many(field,target=None):
   for value in row.get(field,[]) if isinstance(row.get(field),list) else []:
    if isinstance(value,dict):result.append((target or value.get('kind'),value.get('id'),value.get('rev')))
- if kind=='opportunities':many('search_refs','searches');many('tension_refs','tensions');many('decisive_neighbors','papers')
+ if kind=='opportunities':
+  many('search_refs','searches');many('tension_refs','tensions');many('decisive_neighbors','papers')
+  for item in row.get('critical_unknown',[]) if isinstance(row.get('critical_unknown'),list) else []:
+   if isinstance(item,dict) and isinstance(item.get('paper'),dict):result.append(('papers',item['paper'].get('id'),item['paper'].get('rev')))
  if kind=='tensions':many('evidence')
  if kind=='experiments':simple('opportunity','opportunities');simple('plan_ref','experiments')
  if kind=='failures':many('evidence')
@@ -168,7 +171,7 @@ def validate_record(project,kind,row,history,current,strict=False):
  elif kind=='opportunities':
   searches=ref_list('search_refs','searches');ref_list('tension_refs','tensions')
   enum('novelty',{'provisional','unknown','covered'});enum('decision',{'continue','revise','park','abandon'})
-  if not strings(row.get('critical_unknown')):fail('critical_unknown list required')
+  unknowns(row.get('critical_unknown'),fail)
   require_string('change_decision_if');require_string('importance');why_now(row,fail);attackability(row,fail)
   nxt=obj('next_search');budget(nxt.get('budget'),'next_search budget')
   if not text(nxt.get('query')) or nxt.get('state') not in ('planned','complete','exhausted','unresolved'):fail('invalid next_search decision action')
@@ -295,5 +298,23 @@ def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
  for ref in neighbors:
   paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
   if paper and paper.get('reading_depth') not in BODY_READ:fail(f"decisive neighbor {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
+ for item in row.get('critical_unknown',[]):
+  ref=item.get('paper') if isinstance(item,dict) else None
+  paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
+  if paper and paper.get('reading_depth') not in BODY_READ:fail(f"critical unknown paper {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
+ prose=[x for x in row.get('critical_unknown',[]) if isinstance(x,str)]+[row.get('change_decision_if') or '']
+ if any(UNREAD.search(x) for x in prose):
+  (fail if strict else notes.append)('critical_unknown/change_decision_if names an unread work in prose; register it as a paper and cite it as {paper,gap} or in decisive_neighbors, read its body, or park')
  if not neighbors:
   (fail if strict else notes.append)('continue/revise/ready requires decisive_neighbors read in the body (targeted_body/full_text)')
+
+# Prose that admits an unread work; a heuristic that catches honest wording, not deliberate rephrasing.
+UNREAD=re.compile(r'\bunread\b|\bnot (?:yet )?(?:been )?(?:body[- ])?read\b|未读|没读|未精读|正文未|未打开正文',re.I)
+def unknowns(value,fail):
+ # critical_unknown: nonempty list of strings or {paper:{id,rev},gap} pinning an unread/partly read work.
+ if not isinstance(value,list) or not value:fail('critical_unknown list required');return
+ for item in value:
+  if text(item):continue
+  ref=item.get('paper') if isinstance(item,dict) else None
+  if not isinstance(item,dict) or set(item)!={'paper','gap'} or not text(item.get('gap')) or not isinstance(ref,dict) or not text(ref.get('id')) or type(ref.get('rev'))!=int:
+   fail('critical_unknown items must be strings or {paper:{id,rev},gap}')

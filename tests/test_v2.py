@@ -77,6 +77,29 @@ class V2Tests(unittest.TestCase):
   fixed=copy.deepcopy(old);fixed.update(rev=2,decisive_neighbors=[{'id':'p1-v1','rev':2}],supports=[{'id':claim['id'],'rev':2}])
   d['papers'].append(read);d['claims'].append(claim);d['opportunities'].append(fixed)
   r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+ def test_critical_unknown_unread_neighbor_blocks_actionable_decision(self):
+  def opp(decision='continue',depth='abstract',unknown=None,**changes):
+   d=bundle();other=copy.deepcopy(d['papers'][0])
+   other.update(id='p2-v1',work_id='w2',arxiv_id='2301.11306',title='Possible covering work',reading_depth=depth)
+   if depth=='targeted_body':other['reading_scope']='evaluation section read; appendix not read'
+   d['papers'].append(other)
+   o=d['opportunities'][0];o.update(status='candidate',decision=decision,**changes)
+   o['critical_unknown']=unknown if unknown is not None else [{'paper':{'id':'p2-v1','rev':1},'gap':'may already score human revisions'}]
+   return d
+  for decision in ('continue','revise'):
+   r=self.check(opp(decision));self.assertNotEqual(r.returncode,0);self.assertIn('critical unknown paper p2-v1 read only at abstract',r.stdout)
+  r=self.check(opp('park'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  r=self.check(opp(depth='targeted_body'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],):
+   d=opp(unknown=prose)
+   if prose==['ok']:d['opportunities'][0]['change_decision_if']='The unread 2025 paper already scores revisions'
+   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout);self.assertIn('names an unread work in prose',r.stdout)
+   r=self.check(d,'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('names an unread work in prose',r.stdout)
+  r=self.check(opp('park',unknown=['the 2025 paper was not read']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  r=self.check(opp(unknown=['strong baseline reproduction pending']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  for bad in ([{'paper':{'id':'p2-v1'},'gap':'x'}],[{'paper':{'id':'p2-v1','rev':1}}],[{'gap':'x'}],[3]):
+   r=self.check(opp(unknown=bad));self.assertNotEqual(r.returncode,0,bad);self.assertIn('critical_unknown',r.stdout)
+  r=self.check(opp(unknown=[{'paper':{'id':'nope','rev':1},'gap':'x'}]));self.assertNotEqual(r.returncode,0);self.assertIn('missing foreign key',r.stdout)
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)
