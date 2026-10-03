@@ -102,6 +102,14 @@ class AssertionTests(unittest.TestCase):
   r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('assertions/a1',r.stdout)
   r=self.check(d,'--mark-review');rows=(self.project/'research/assertions.jsonl').read_text().splitlines()
   self.assertEqual(json.loads(rows[-1])['review_status'],'needs_review')
+  opp=(self.project/'research/opportunities.jsonl').read_text().splitlines()
+  self.assertEqual(json.loads(opp[-1])['status'],'needs_review','one --mark-review pass must also reopen the direction')
+
+ def test_explicit_opportunity_dependency_keeps_freshness(self):
+  d=self.data();d['experiments'][0]['depends_on']=[{'kind':'opportunities','id':'o1','rev':1}]
+  d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at='2026-10-02T18:00:00Z'))
+  r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('experiments/e1: needs_review',r.stdout)
+  del d['experiments'][0]['depends_on'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'

@@ -197,26 +197,33 @@ def find_stale(latest,extra_stale):
    if comparison!={'id':newest[a][1],'rev':newest[a][2]} or newer.get('reading_depth')!='full_text' or not row.get('review_note'): stale.add(key)
  for key,row in latest.items():
   if key[0]=='sources' and row.get('status') in ('retracted','unavailable') or key[0]=='papers' and row.get('publication_status')=='retracted' or row.get('review_status')=='needs_review' or key[0]=='opportunities' and row.get('status')=='needs_review' or row.get('active') is False or key[0]=='handoffs' and row.get('step_state')=='needs_review': stale.add(key)
- # Reverse link: an assertion re-judged after its opportunity re-opens that direction decision.
- # Only the assertion's own revision/status counts, never inherited staleness, so this cannot loop.
+ # Reverse link: a re-judged or stale assertion re-opens its (unpinned) opportunity decision.
+ # Safe inside the closure because no built-in edge propagates from opportunities back down.
+ reverse=[]
  for key,row in latest.items():
   oid=row.get('opportunity_id')
   if key[0]!='assertions' or row.get('active') is False or not isinstance(oid,str) or ('opportunities',oid) not in latest:continue
-  opp=latest[('opportunities',oid)]
+  opp=latest[('opportunities',oid)];reverse.append((key,('opportunities',oid)))
   if row.get('review_status')=='needs_review' or timestamp(row.get('updated_at')) and timestamp(opp.get('updated_at')) and dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))>dt.datetime.fromisoformat(opp['updated_at'].replace('Z','+00:00')):stale.add(('opportunities',oid))
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:
   changed=False
   for key,row in latest.items():
+   # A plan's built-in opportunity pin records which direction it was designed for; revising the
+   # direction (a downstream decision) must not invalidate the evidence it was decided from.
+   # Explicit depends_on keeps normal freshness.
+   link=row.get('opportunity') if key[0]=='experiments' else None
+   plan_link=('opportunities',link.get('id'),link.get('rev')) if isinstance(link,dict) else None
+   explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
    for dep in dependencies(key[0],row):
     if not all(type(x) in (str,int) for x in dep): continue
-    # A plan's opportunity pin records which direction it was designed for; revising the direction
-    # (a downstream decision) must not invalidate the evidence chain it was decided from.
-    if key[0]=='experiments' and dep[0]=='opportunities': continue
+    if dep==plan_link and dep not in explicit: continue
     target=latest.get(dep[:2])
     if target and (target['rev']!=dep[2] or dep[:2] in stale) and key not in stale:
      stale.add(key);changed=True
+  for source,opp in reverse:
+   if source in stale and opp not in stale:stale.add(opp);changed=True
  return stale
 
 # Discovery-yield heuristics: notes only; a compliant project can still be a low-yield one.
