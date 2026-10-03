@@ -290,9 +290,10 @@ BODY_READ=('targeted_body','full_text')
 def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
  # An actionable decision must rest on decisive neighbors read in the body, not on abstracts.
  neighbors=ref_list('decisive_neighbors','papers') if 'decisive_neighbors' in row else []
- if row.get('decision') not in ('continue','revise') and row.get('status')!='ready':return
+ # Historical revisions are not re-gated: append-only repair (body read + new rev) must restore PASS.
+ if not current or row.get('active') is False or row.get('decision') not in ('continue','revise') and row.get('status')!='ready':return
  for ref in neighbors:
   paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
   if paper and paper.get('reading_depth') not in BODY_READ:fail(f"decisive neighbor {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
- if not neighbors and current and row.get('active') is not False:
+ if not neighbors:
   (fail if strict else notes.append)('continue/revise/ready requires decisive_neighbors read in the body (targeted_body/full_text)')

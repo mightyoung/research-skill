@@ -70,6 +70,13 @@ class V2Tests(unittest.TestCase):
   r=self.check(d,'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('decisive_neighbors',r.stdout)
   r=self.check(opp(decisive_neighbors=[]),'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('decisive_neighbors',r.stdout)
   r=self.check(opp(decisive_neighbors=[{'id':'missing','rev':1}]));self.assertNotEqual(r.returncode,0);self.assertIn('missing foreign key',r.stdout)
+  # Append-only repair: a later body read plus a new opportunity rev must restore PASS without rewriting history.
+  d=opp(depth='abstract');old=d['opportunities'][0]
+  read=copy.deepcopy(d['papers'][0]);read.update(rev=2,reading_depth='full_text')
+  claim=copy.deepcopy(d['claims'][0]);claim.update(rev=2,paper_rev=2)
+  fixed=copy.deepcopy(old);fixed.update(rev=2,decisive_neighbors=[{'id':'p1-v1','rev':2}],supports=[{'id':claim['id'],'rev':2}])
+  d['papers'].append(read);d['claims'].append(claim);d['opportunities'].append(fixed)
+  r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)
