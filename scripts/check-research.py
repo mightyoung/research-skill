@@ -211,6 +211,9 @@ def find_stale(latest,extra_stale):
   for key,row in latest.items():
    for dep in dependencies(key[0],row):
     if not all(type(x) in (str,int) for x in dep): continue
+    # A plan's opportunity pin records which direction it was designed for; revising the direction
+    # (a downstream decision) must not invalidate the evidence chain it was decided from.
+    if key[0]=='experiments' and dep[0]=='opportunities': continue
     target=latest.get(dep[:2])
     if target and (target['rev']!=dep[2] or dep[:2] in stale) and key not in stale:
      stale.add(key);changed=True

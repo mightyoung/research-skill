@@ -77,8 +77,9 @@ class AssertionTests(unittest.TestCase):
   d=self.data();del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
   later='2026-10-02T12:00:00Z';evening='2026-10-02T18:00:00Z'
   d=self.data(run('refuting'),evidence=[dict(SUP,role='refutes')],state='refuted',rev=2,updated_at=later)
-  d['assertions'].insert(0,assertion());del d['experiments'][0]['opportunity']  # plans pinned to o1@1 go stale on any o1 revision (existing rule)
-  r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('opportunities/o1',r.stdout);self.assertNotIn('assertions/a1',r.stdout)
+  d['assertions'].insert(0,assertion());self.assertEqual(d['experiments'][0]['opportunity'],{'id':'o1','rev':1})  # default plan shape stays pinned
+  r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('opportunities/o1',r.stdout)
+  for chain in ('experiments/e1','experiments/r1','assertions/a1'):self.assertNotIn(chain+': needs_review',r.stdout)
   revised=dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at=evening,status='candidate',decision='revise');d['opportunities'].append(revised)
   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
   d['assertions'][-1]['updated_at']=later;d['assertions'][-1]['review_status']='needs_review'
