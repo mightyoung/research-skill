@@ -8,15 +8,25 @@ README 只保留当前用法；各版本的改动说明与验证记录按原文�
 
 新增 V2 日志 `assertions`：不挂论文，`assertion_state` 为 untested/supported/refuted/inconclusive/withdrawn，证据带 `role`（supports/refutes/context）。校验器只检查状态与所引证据一致：role 不得与运行结果矛盾，supported/refuted 需具辨别力的完成运行（supported 也可用全文论文原述），inconclusive 需结果为 inconclusive 的已执行运行或冲突的决定性证据（冲突时不得标 supported/refuted），withdrawn 需理由，untested 不得带有足以定状态的支持或反驳证据；证据变化沿依赖传递待复核；主张以不固定修订的 `opportunity_id` 关联方向，方向用 `assertion_review:[{id,rev}]` 确认据以决定的主张修订（不进依赖图），曾关联过的方向未确认主张最新修订、确认过的主张已更新（含移走或解除关联）或主张待复核（含继承，传给关联过或确认过它的每个方向）时，方向在同一次校验中进入待复核，固定依赖与反向关联合并成环则报错；计划内置的方向固定引用不再向下传递待复核（显式 depends_on 照常）（此前任何方向修订都会让已执行的运行和主张失效，回流第 3 步因此无法收敛）；交付物可引用 `[assertions/id@rev]`。新增 references/result-feedback.md 与 SKILL.md 路由"实验结果回来"；results 与 handoff 模板各加一栏。旧项目缺该日志不报错；新初始化建空文件。
 
-## 未发布：发现产出（P0/P1）
+## 未发布：未读近邻门槛
+
+起因：v6.6 不点名对照运行里，唯一 continue 的候选列出了三篇已读正文的近邻、通过了近邻正文门槛，但最可能覆盖它的工作（2025 视频入库配置论文）只以"未读"文字写在 `critical_unknown` 和 `change_decision_if`，没有登记为论文，门槛被绕过。
+
+`critical_unknown` 条目可写成 `{paper:{id,rev},gap}`，钉住的论文参与外键与复核传播；continue/revise/ready 的当前快照中这些论文须读到正文，否则报错。文字条目或 `change_decision_if` 承认某篇文献未读时默认提示、`--strict-v2` 报错：未读字样必须紧挨着文献词（英文 `unread … paper` 或 `not/n't … read … paper` 相隔不超过 3 个词，`paper … was/has not read` 文献词与助动词之间不超过 2 个词；中文"专利正文未读""未读的论文"这类最多隔 1 个字），这样研究对象本身就是"未读消息"之类的领域用语不会被误判。文字检查是启发式，只能拦下诚实的写法，挡不住刻意改写，也会漏掉只带"方法"等通用词的写法（如"Chameleon 未读的在线适应方法"）和更远距离的表述；关键词规则的边角误判/漏判记为已知局限，不再逐条追加规则；它的作用是把结构化登记变成最省力的路径。park/abandon 不受限，只检查当前有效快照。153 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过。
+
+## V6.6 发现产出与近邻正文门槛
 
 起因：human-count 一次 discover 运行通过了 `--strict-v2`，但 19 次检索里多数是按名字核对已知论文，C 只有 2 个元问题候选、全部停放、五关卡全 unknown，正文大半是免责与模板标签。结构合规成了低产出的最省力路径。
 
-P0 先生成后筛选：field-discovery 要求选题前先列 5–8 个原始想法的候选池（至少 3 种贡献类型）；全部停放合法，但每项要写可执行化路径和一个可立即动手的构造动作。检索区分 known_item / exploratory / snowball（searches 可选 `intent`），默认至少 5 次探索检索、从 ≥2 篇核心论文做引用追溯；预算未用完而关键子问题未解决时继续检索；核心近邻读到正文后再精读专利、产品页等外围材料。check-research 新增 `discovery yield` 提示（缺 intent、探索检索不足、无 snowball、超过一半论文只读摘要），只提示不判失败。
+先生成后筛选（#10）：field-discovery 要求选题前先列 5–8 个原始想法的候选池（至少 3 种贡献类型，仅 discover；review 只审用户那一条主张）；全部停放合法，但每项要写可执行化路径和一个可立即动手的构造动作。检索区分 known_item / exploratory / snowball（searches 可选 `intent`），默认至少 5 次探索检索、从 ≥2 篇核心论文做引用追溯；预算未用完而关键子问题未解决时继续检索；核心近邻读到正文后再精读专利、产品页等外围材料。check-research 新增 `discovery yield` 提示（缺 intent、探索检索不足、无 snowball、超过一半论文只读摘要），只提示不判失败。
 
-P1 可读与通用：opportunities 模板改为"候选池 + 问句小节"，handoff 与 brainstorm 的斜杠标签清单压成问句，并明确不把标签抄进正文；reviewer 新增产出层清单。数据适配增加"需构造测量"一类（模拟用户、小规模试标、受控合成材料，例如交互式分割的点击次数）。problem-construction 去掉装配研究专属的 trial/triplet 与错误接受分母细节，保留通用的统计单位与弃权分母规则。
+可读与通用（#10）：opportunities 模板改为"候选池 + 问句小节"，handoff 与 brainstorm 的斜杠标签清单压成问句，并明确不把标签抄进正文；reviewer 新增产出层清单。数据适配增加"需构造测量"一类（模拟用户、小规模试标、受控合成材料，例如交互式分割的点击次数）。problem-construction 去掉装配研究专属的 trial/triplet 与错误接受分母细节，保留通用的统计单位与弃权分母规则。
 
-`intent` 为可选字段，无新必填日志或依赖。151 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过（仅新增 intent 缺失提示）。这些改动能否真的提高研究产出，需要同一提示词下新旧版本的对照运行来判断，离线测试不能证明。
+近邻正文门槛（#12）：opportunities 新增 `decisive_neighbors`（固定修订的论文引用，参与外键与复核传播）。decision=continue/revise 或 ready 必须列出，且所列论文须读到正文（targeted_body/full_text），否则报错；缺字段在默认模式只提示、`--strict-v2` 报错。只检查当前有效快照，历史修订可通过追加正文阅读与新修订修复。park/abandon 不受限。examples 的 o1 已补该字段。
+
+对照运行（grok-4.7 xhigh，human-count，每组一次）：同一提示词下换用新版 skill，候选池从无到 7 条，候选从全部停放变为继续/修订/淘汰各有决定，照抄模板标签从 28 处降到 1 处；再去掉提示词里点名的论文，找到 6 篇本地文献表之外的工作（旧版为 0 篇论文）。只读摘要的论文仍占 45%–50%，这是增加近邻正文门槛的原因。点击次数迁移来自 skill 自身的例子，不算作发现；单次运行有随机性，只说明方向。
+
+`intent` 与 `decisive_neighbors` 都是可选字段，无新必填日志或依赖；老项目里 continue/revise 的机会在 `--strict-v2` 下需要补列近邻。152 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过；结构校验不认证研究质量。
 
 ## V6.5 查询分析与委派合同
 
