@@ -43,6 +43,17 @@ class V2Tests(unittest.TestCase):
   d=bundle();d['searches'][0]['subq']='sq2';r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout+r.stderr)
   for bad in ('',' ',2,['sq1']):
    d=bundle();d['searches'][0]['subq']=bad;r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('subq',r.stdout)
+ def test_search_intent_and_discovery_yield_notes_never_fail(self):
+  r=self.check(bundle(),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout);self.assertIn('searches lack intent',r.stdout)
+  d=bundle()
+  for row in d['searches']:row['intent']='known_item'
+  r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  self.assertIn('only 0 exploratory/snowball',r.stdout);self.assertIn('no snowball',r.stdout)
+  for i,row in enumerate(d['searches']):row['intent']='snowball' if i==0 else 'exploratory'
+  r=self.check(d,'--strict-v2');self.assertEqual(r.returncode,0,r.stdout);self.assertNotIn('discovery yield: only',r.stdout);self.assertNotIn('no snowball',r.stdout)
+  d['papers'][0]['reading_depth']='abstract';d['opportunities'][0]['status']='candidate'
+  r=self.check(d);self.assertIn('1/1 papers read at abstract depth',r.stdout)
+  d=bundle();d['searches'][0]['intent']='lookup';r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('intent',r.stdout)
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)

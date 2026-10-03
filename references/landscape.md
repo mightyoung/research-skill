@@ -10,6 +10,9 @@ enter/frontier/directions先使用 [field-discovery](field-discovery.md) 的disc
    - 强基线：找当前同任务、同预算、同数据设定的强方法，包括简单方法和复现报告。
    - 近期前沿：前向引用、会议/期刊、预印本，区别公开版本、accepted 与正式发表。固定信息截止日期。
    - 争议/负结果：搜 failure、limitation、negative result、replication、correction/retraction 及同义词；记录搜不到的缺口，不能把没有结果当作没有反例。
+
+   **发现，而不只是核对。** 按标题、作者、会议找一篇已知论文是 known_item，只能核对已有清单（包括项目里原有的文献表）。地图要靠 exploratory 检索（按问题、术语变体、邻近领域叫法）和 snowball（从至少 2 篇核心论文做前后向引用）扩出去；searches 用可选 `intent` 标明。默认至少 5 次 exploratory，snowball 不为零。预算是上限也是下限：关键子问题仍 unresolved 而预算未用完时继续检索，不提前交付。
+   **先广后深。** 核心论文和决定性近邻读到正文（方法、实验设置、局限）之后，才在外围材料（专利逐条权利要求、产品页、二手转述）上花精读预算。
 3. 建 `landscape.md`：每行问题 → 方法 → 假设 → 支持/反证 claim ID@rev → 瓶颈 → 适用条件。区分论文声称、自己复现、推测。结论不能越过实际阅读深度。关键数字对照 PDF 与原始源码；清洗文本只是阅读辅助。
 4. 阅读路径按概念依赖排序，写读这篇为了回答什么。每篇版本在 `research/papers.jsonl`，其证据在 claims。记录页码/图表、split、样本量、指标、资源、负例，缺失项写未知，不补造数字。
    面向新手首次展开缩写和指标口径；作者版/会议最终版是阅读工件，录用/发表是作品状态，分别核对官方身份页、出版页与关联版本。存在冲突就列依据和待核，不以arXiv URL或无Comments断言未发表。

@@ -52,10 +52,11 @@ description: Use when entering a research field, mapping its frontier, finding d
 - 基础较弱时，把前提分成阻塞理解（现在补）、实施前（待补）、周边（暂放）；按当前学习目标和预算停，不默认完整推导或实现。
 
 **发现与方向**
-- discover 先按 field discovery 写一页领域判断；需要选题时再生成实质贡献不同的候选。
+- discover 先按 field discovery 写一页领域判断；需要选题时（仅 discover，review 不扩展）先列 5–8 个原始想法的候选池（至少 3 种贡献类型），再反证、筛选。全部停放可以，但每项要写可执行化路径和一个可立即动手的构造动作；只交一串 unknown 不算完成 C。
 - 用户给的机制是待反驳的先验，不能预设为研究边界或答案；review 才围绕明确主张组织反证。
 - 优先解释路线为何演进、瓶颈为何优先。推荐前精读决定性近邻的关键正文，把"数据已支持 / 需新增标注 / 待核实"转成第一个可执行探查。
 - 资源未知不阻断探索，也不等于可以开实验。创新不强制是新算法，不用 proposed mechanism 代替具体贡献。
+- 目标真值是人工成本、修正或行为这类没有数据集会记录的量时，构造测量（模拟用户、小规模试标、受控合成材料），不要只找现成数据。
 - 方向先查最强竞争解释和会推翻首选方向的证据；没有进攻路径就停放；预算耗尽写明未解决。
 - 候选假设可在复现前提出；**正式实验前核验关键强基线**、数据可用性、预算和标准化评测。
 
@@ -66,6 +67,7 @@ description: Use when entering a research field, mapping its frontier, finding d
 - 阅读工件版本与作品发表状态分开核对：作者预印本不等于未发表；有冲突查官方身份/出版信息，未核实保持 unknown；更新追加修订，不覆盖历史。
 - 关键精读每篇先写读后决策，按需重建机制/数据/固定代码版本/图表证据链；够作当前决定就停，缺关键证据则暂停受影响的判断。仅入门不强制代码或训练；静态阅读、demo、权重评估、重训、独立复验分别记录。
 - 检索记录能力、查询时间、命中数/总数、分页/截断/失败与预算；总数未知不称穷尽。
+- 检索要发现，不只核对：按名字找已知论文（含项目原有文献表）是 known_item；地图靠 exploratory 检索和从核心论文出发的 snowball 扩展，searches 记 `intent`。关键子问题未解决而预算未用完时继续检索。核心近邻读到正文后，才把精读预算花在专利条款、产品页等外围材料上。
 
 **论文获取**
 - 下载：`bash "<skill root>/scripts/fetch-paper.sh" 2301.11305v1 detectgpt --project "<project root>"`。只接受固定版本，产物在 `related_work/<slug>/versions/vN/`，原始材料与清洗副本分开。
@@ -79,10 +81,11 @@ description: Use when entering a research field, mapping its frontier, finding d
 - 上游纪律：效果变好先查数据泄漏；核对中间处理；每版实验命名并保留失败；按固定 evaluation 测评；用领域标准术语。
 
 **校验、审查与交接**
-- 运行 `python3 "<skill root>/scripts/check-research.py" "<project root>"`；增量变更后加 `--mark-review`；新项目加 `--strict-v2` 检查当前活跃记录已迁移到 V2（格式见 evidence schema）。每条新写入的记录（含向旧项目增量追加的新 ID）都显式写 `schema_version: 2`：默认模式把缺省版本当 V1 只提示放行，会绕过全部 V2 契约。旧 V1 记录只做兼容并提示，迁移不自动补真。
+- 运行 `python3 "<skill root>/scripts/check-research.py" "<project root>"`；增量变更后加 `--mark-review`；新项目加 `--strict-v2` 检查当前活跃记录已迁移到 V2（格式见 evidence schema）。每条新写入的记录（含向旧项目增量追加的新 ID）都显式写 `schema_version: 2`：默认模式把缺省版本当 V1 只提示放行，会绕过全部 V2 契约。旧 V1 记录只做兼容并提示，迁移不自动补真。`discovery yield` 提示（探索检索少、无引用追溯、多数论文只读摘要）不判失败，但交付前要处理或写明理由。
 - 生成与审查按需分开：从同一原始材料独立形成判断再汇总，不用共享结论制造共识；多 Agent 不默认强制。
 - 确需委派时，每个子任务写委派合同：目标/对应brief子问题、负责的检索层、来源范围与可信度要求、不做什么（防重复和漂移）、输出写入哪个日志（searches记subq）、预算；子任务只交证据与缺口，判断由主流程汇总。
 - 交接核对输入/产物 hash 和状态；窗口结束主动更新 handoff。
+- 模板里的问句和字段名是提示：交付物用写给人的完整句子回答，不照抄标签；免责与边界集中写一处，不逐句重复。
 
 ## 能力边界
 
