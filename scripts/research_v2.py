@@ -304,13 +304,16 @@ def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
   paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
   if paper and paper.get('reading_depth') not in BODY_READ:fail(f"critical unknown paper {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
  prose=[x for x in [*items,row.get('change_decision_if')] if isinstance(x,str)]
- if any(UNREAD.search(x) for x in prose):
+ if any(admits_unread(x) for x in prose):
   (fail if strict else notes.append)('critical_unknown/change_decision_if names an unread work in prose; register it as a paper and cite it as {paper,gap} or in decisive_neighbors, read its body, or park')
  if not neighbors:
   (fail if strict else notes.append)('continue/revise/ready requires decisive_neighbors read in the body (targeted_body/full_text)')
 
-# Prose that admits an unread work; a heuristic that catches honest wording, not deliberate rephrasing.
-UNREAD=re.compile(r'\bunread\b|\bnot (?:yet )?(?:been )?(?:body[- ])?read\b|未读|没读|未精读|未打开正文',re.I)
+# Prose admitting an unread publication: an unread phrase plus a reading-context word in the same item.
+# Heuristic only: catches honest wording, not deliberate rephrasing; domains may study unread content itself.
+UNREAD=re.compile(r'\bunread\b|\bnot (?:yet )?(?:been )?(?:body[- ])?read\b|未读|没读|未精读|未打开',re.I)
+READ_CONTEXT=re.compile(r'\b(?:paper|article|preprint|patent|publication|section|appendix|claims?|body|full[- ]text)s?\b|论文|文献|正文|全文|专利|章节|方法节|实验节|附录|权利要求|预印本',re.I)
+def admits_unread(value):return bool(UNREAD.search(value) and READ_CONTEXT.search(value))
 def unknowns(value,fail):
  # critical_unknown: nonempty list of strings or {paper:{id,rev},gap} pinning an unread/partly read work.
  if not isinstance(value,list) or not value:fail('critical_unknown list required');return
