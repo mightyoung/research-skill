@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def run(result='supporting',discriminating=True,state='completed',rid='r1'):
  return dict(schema_version=2,id=rid,rev=1,updated_at=STAMP,review_status='current',phase='executed',plan_ref={'id':'e1','rev':1},actual={'executed_at':STAMP,'measured_values':[0.61,0.52],'result':result,'discriminating':discriminating,'reason':'intervals separate','budget_spent':0.5,'execution_state':state})
 def assertion(state='untested',evidence=(),**extra):
- row=dict(schema_version=2,id='a1',rev=1,updated_at=STAMP,review_status='current',statement='Rework resets step completion; history-only trackers miss it',assertion_state=state,opportunity={'id':'o1','rev':1},evidence=list(evidence),does_not_support=['all assembly lines','online deployment'])
+ row=dict(schema_version=2,id='a1',rev=1,updated_at=STAMP,review_status='current',statement='Rework resets step completion; history-only trackers miss it',assertion_state=state,opportunity_id='o1',evidence=list(evidence),does_not_support=['all assembly lines','online deployment'])
  row.update(extra);return row
 SUP={'kind':'experiments','id':'r1','rev':1,'role':'supports'}
 
@@ -71,10 +71,18 @@ class AssertionTests(unittest.TestCase):
    r=self.check(d);self.assertNotEqual(r.returncode,0,access);self.assertIn('supported',r.stdout)
    d['assertions'][0]['assertion_state']='untested';r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
- def test_opportunity_link_must_be_pinned_reference(self):
-  for value in ('o1',['o1'],{'id':'o1'},{'id':'o1','rev':'1'}):
-   r=self.check(self.data(opportunity=value));self.assertNotEqual(r.returncode,0,value);self.assertIn('opportunity',r.stdout)
-  d=self.data();del d['assertions'][0]['opportunity'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+ def test_newer_assertion_reopens_its_opportunity_without_cycles(self):
+  for value in (['o1'],{'id':'o1','rev':1},'',2,'missing'):
+   r=self.check(self.data(opportunity_id=value));self.assertNotEqual(r.returncode,0,value);self.assertIn('opportunity_id',r.stdout)
+  d=self.data();del d['assertions'][0]['opportunity_id'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+  later='2026-10-02T12:00:00Z';evening='2026-10-02T18:00:00Z'
+  d=self.data(run('refuting'),evidence=[dict(SUP,role='refutes')],state='refuted',rev=2,updated_at=later)
+  d['assertions'].insert(0,assertion());del d['experiments'][0]['opportunity']  # plans pinned to o1@1 go stale on any o1 revision (existing rule)
+  r=self.check(d);self.assertNotEqual(r.returncode,0);self.assertIn('opportunities/o1',r.stdout);self.assertNotIn('assertions/a1',r.stdout)
+  revised=dict(copy.deepcopy(d['opportunities'][0]),rev=2,updated_at=evening,status='candidate',decision='revise');d['opportunities'].append(revised)
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+  d['assertions'][-1]['updated_at']=later;d['assertions'][-1]['review_status']='needs_review'
+  r=self.check(d);self.assertIn('opportunities/o1',r.stdout)
 
  def test_conflicting_decisive_runs_force_inconclusive(self):
   ev=[SUP,{'kind':'experiments','id':'r2','rev':1,'role':'refutes'}];runs=(run('supporting'),run('refuting',rid='r2'))

@@ -197,6 +197,13 @@ def find_stale(latest,extra_stale):
    if comparison!={'id':newest[a][1],'rev':newest[a][2]} or newer.get('reading_depth')!='full_text' or not row.get('review_note'): stale.add(key)
  for key,row in latest.items():
   if key[0]=='sources' and row.get('status') in ('retracted','unavailable') or key[0]=='papers' and row.get('publication_status')=='retracted' or row.get('review_status')=='needs_review' or key[0]=='opportunities' and row.get('status')=='needs_review' or row.get('active') is False or key[0]=='handoffs' and row.get('step_state')=='needs_review': stale.add(key)
+ # Reverse link: an assertion re-judged after its opportunity re-opens that direction decision.
+ # Only the assertion's own revision/status counts, never inherited staleness, so this cannot loop.
+ for key,row in latest.items():
+  oid=row.get('opportunity_id')
+  if key[0]!='assertions' or row.get('active') is False or not isinstance(oid,str) or ('opportunities',oid) not in latest:continue
+  opp=latest[('opportunities',oid)]
+  if row.get('review_status')=='needs_review' or timestamp(row.get('updated_at')) and timestamp(opp.get('updated_at')) and dt.datetime.fromisoformat(row['updated_at'].replace('Z','+00:00'))>dt.datetime.fromisoformat(opp['updated_at'].replace('Z','+00:00')):stale.add(('opportunities',oid))
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:
