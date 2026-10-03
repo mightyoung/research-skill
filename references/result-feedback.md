@@ -13,9 +13,9 @@
 1. **先落实测。** 每次运行一条 executed 记录，指向固定的计划修订（plan_ref）。同一计划修订可以有多次运行。导入的结果先核对任务身份、计划修订、来源与附件 hash，再写入；未经人确认接纳的结果不写 executed。
 2. **逐条改主张。** 对受影响的 assertion 追加下一 rev，在 `evidence` 里给每条证据标 `role`：
    - `supports` / `refutes` 必须与运行结果一致；低辨别力或技术失败只能标 `context`。
-   - `supported`：至少一次具辨别力、完成且支持的运行；纯文献主张可以用一条全文阅读的论文原述（paper_statement），但要在 does_not_support 里写清没有实测。
+   - `supported`：至少一次具辨别力、完成且支持的运行；纯文献主张可以用一条全文阅读、材料可用（material_access=available）的论文原述（paper_statement），但要在 does_not_support 里写清没有实测。
    - `refuted`：至少一次具辨别力、完成且反驳的运行；同时写 failures（hypothesis_refuted）及重开条件。
-   - `inconclusive`：跑了但分不开；写 failures（non_discriminating），说明缺的精度或对照。
+   - `inconclusive`：跑了但分不开，或明确支持与明确反驳的证据互相冲突（冲突时不得标 supported/refuted）；写 failures（non_discriminating），说明缺的精度或对照。
    - `untested`：还没有能定状态的证据。一旦引用了足以判定支持或反驳的证据，就必须改状态；只作背景的证据标 `context`。
    - `withdrawn`：不是被实验推翻，而是近邻已覆盖、问题重构等原因不再主张；必须写 review_note。旧 rev 保留。
    - `does_not_support` 每次重写：这次结果仍然不能支持的更强说法。

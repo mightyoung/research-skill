@@ -64,6 +64,24 @@ class AssertionTests(unittest.TestCase):
    r=self.check(self.data(run(),evidence=[dict(SUP,**{field:value})]))
    self.assertNotEqual(r.returncode,0);self.assertIn('evidence',r.stdout,field);self.assertNotIn('could not complete',r.stdout+r.stderr,field)
 
+ def test_literature_support_needs_available_material(self):
+  claim={'kind':'claims','id':'c1','rev':1,'role':'supports'}
+  for access in ('unchecked','unavailable','extraction_failed'):
+   d=self.data(state='supported',evidence=[claim]);d['claims'][0]['material_access']=access;d['opportunities'][0]['status']='candidate'
+   r=self.check(d);self.assertNotEqual(r.returncode,0,access);self.assertIn('supported',r.stdout)
+   d['assertions'][0]['assertion_state']='untested';r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
+ def test_opportunity_link_must_be_pinned_reference(self):
+  for value in ('o1',['o1'],{'id':'o1'},{'id':'o1','rev':'1'}):
+   r=self.check(self.data(opportunity=value));self.assertNotEqual(r.returncode,0,value);self.assertIn('opportunity',r.stdout)
+  d=self.data();del d['assertions'][0]['opportunity'];r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
+ def test_conflicting_decisive_runs_force_inconclusive(self):
+  ev=[SUP,{'kind':'experiments','id':'r2','rev':1,'role':'refutes'}];runs=(run('supporting'),run('refuting',rid='r2'))
+  for state in ('supported','refuted'):
+   r=self.check(self.data(*runs,state=state,evidence=ev));self.assertNotEqual(r.returncode,0,state);self.assertIn('conflicting',r.stdout)
+  r=self.check(self.data(*runs,state='inconclusive',evidence=ev));self.assertEqual(r.returncode,0,r.stdout)
+
  def test_withdrawn_keeps_history_with_reason(self):
   r=self.check(self.data(state='withdrawn'));self.assertNotEqual(r.returncode,0);self.assertIn('withdrawn',r.stdout)
   r=self.check(self.data(state='withdrawn',review_note='nearest neighbour already handles rework'));self.assertEqual(r.returncode,0,r.stdout)

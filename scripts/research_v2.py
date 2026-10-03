@@ -246,6 +246,8 @@ def validate_record(project,kind,row,history,current,strict=False):
   # Our own research claims; state is a declaration checked only against the typed evidence it cites.
   require_string('statement');enum('assertion_state',ASSERTION_STATES)
   if not strings(row.get('does_not_support')):fail('does_not_support must state stronger conclusions excluded')
+  link=row.get('opportunity')
+  if 'opportunity' in row and (not isinstance(link,dict) or not text(link.get('id')) or type(link.get('rev'))!=int):fail('opportunity must be pinned {id,rev} reference')
   linked=[]
   for ref in ref_list('evidence'):
    # ref_list already reported malformed entries; skip them before any history lookup.
@@ -258,12 +260,13 @@ def validate_record(project,kind,row,history,current,strict=False):
    linked.append((role,ref.get('kind'),target,actual))
   def decisive(role,result):return any(r==role and a.get('result')==result and a.get('discriminating') is True and a.get('execution_state')=='completed' for r,_,_,a in linked)
   state=row.get('assertion_state')
-  supported=decisive('supports','supporting') or any(r=='supports' and k=='claims' and t.get('schema_version')==2 and t.get('basis')=='full_text' and t.get('evidence_kind')=='paper_statement' for r,k,t,_ in linked)
+  supported=decisive('supports','supporting') or any(r=='supports' and k=='claims' and t.get('schema_version')==2 and t.get('basis')=='full_text' and t.get('evidence_kind')=='paper_statement' and t.get('material_access')=='available' for r,k,t,_ in linked)
   refuted=decisive('refutes','refuting')
   if state=='untested' and (supported or refuted):fail('untested cannot cite state-determining evidence; update assertion_state or cite it as context')
+  if state in ('supported','refuted') and supported and refuted:fail('conflicting decisive evidence: state must be inconclusive or withdrawn')
   if state=='supported' and not supported:fail('supported needs a discriminating supporting run or a full-text paper statement')
   if state=='refuted' and not refuted:fail('refuted needs a discriminating refuting run')
-  if state=='inconclusive' and not any(a.get('result')=='inconclusive' for *_,a in linked):fail('inconclusive needs an executed run whose result is inconclusive')
+  if state=='inconclusive' and not (supported and refuted) and not any(a.get('result')=='inconclusive' for *_,a in linked):fail('inconclusive needs an inconclusive executed run or conflicting decisive evidence')
   if state=='withdrawn' and not text(row.get('review_note')):fail('withdrawn requires review_note')
  return errors,notes,stale
 
