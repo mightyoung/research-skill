@@ -100,6 +100,14 @@ class V2Tests(unittest.TestCase):
   for bad in ([{'paper':{'id':'p2-v1'},'gap':'x'}],[{'paper':{'id':'p2-v1','rev':1}}],[{'gap':'x'}],[3]):
    r=self.check(opp(unknown=bad));self.assertNotEqual(r.returncode,0,bad);self.assertIn('critical_unknown',r.stdout)
   r=self.check(opp(unknown=[{'paper':{'id':'nope','rev':1},'gap':'x'}]));self.assertNotEqual(r.returncode,0);self.assertIn('missing foreign key',r.stdout)
+  # Malformed values must surface as schema errors, not crash the whole validation.
+  for bad in (None,3,'text'):
+   d=opp();d['opportunities'][0]['critical_unknown']=bad
+   r=self.check(d);self.assertNotEqual(r.returncode,0,bad);self.assertIn('critical_unknown list required',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
+  d=opp();d['opportunities'][0]['change_decision_if']=None
+  r=self.check(d);self.assertNotIn('could not complete',r.stdout+r.stderr);self.assertIn('change_decision_if',r.stdout)
+  # A body-read finding that something was not reported is not an unread work.
+  r=self.check(opp(depth='full_text',unknown=['该近邻正文未报告训练成本']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:
    d=bundle();d['searches'][0][field]=value;r=self.check(d);self.assertNotEqual(r.returncode,0)
