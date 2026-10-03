@@ -196,19 +196,27 @@ def acknowledged(opportunity):
  value=opportunity.get('assertion_review')
  return {(a['id'],a['rev']) for a in value if isinstance(a,dict) and isinstance(a.get('id'),str) and type(a.get('rev'))==int} if isinstance(value,list) else set()
 
+def linked_opportunities(history):
+ """Every opportunity_id each assertion has carried in any revision."""
+ linked={}
+ for (kind,rid,_),row in history.items():
+  if kind=='assertions' and isinstance(row.get('opportunity_id'),str):linked.setdefault(rid,set()).add(row['opportunity_id'])
+ return linked
+
 def own_opportunity_pins(history,latest):
  """Assertions whose pinned chain (exact revisions) reaches their own opportunity: with the reverse link that is a stale cycle."""
  bad=[]
  for (kind,rid),row in latest.items():
-  oid=row.get('opportunity_id')
-  if kind!='assertions' or row.get('active') is False or not isinstance(oid,str):continue
+  if kind!='assertions' or row.get('active') is False:continue
+  directions={('opportunities',oid) for oid in linked_opportunities(history).get(rid,())}
+  if not directions:continue
   seen=set();todo=[(kind,rid,row['rev'])]
   while todo:
    current=todo.pop()
    if current in seen or current not in history:continue
    seen.add(current)
    for dep in propagating(current[:2],history[current]):
-    if dep[:2]==('opportunities',oid):bad.append((kind,rid));todo=[];break
+    if dep[:2] in directions:bad.append((kind,rid));todo=[];break
     todo.append(dep)
  return bad
 
@@ -230,23 +238,20 @@ def find_stale(history,latest,extra_stale):
   if key[0]=='sources' and row.get('status') in ('retracted','unavailable') or key[0]=='papers' and row.get('publication_status')=='retracted' or row.get('review_status')=='needs_review' or key[0]=='opportunities' and row.get('status')=='needs_review' or row.get('active') is False or key[0]=='handoffs' and row.get('step_state')=='needs_review': stale.add(key)
  # Reverse link: a re-judged or stale assertion re-opens its (unpinned) opportunity decision.
  # Safe inside the closure because no built-in edge propagates from opportunities back down.
- linked={}
- for (kind,rid,_),row in history.items():
-  if kind=='assertions' and isinstance(row.get('opportunity_id'),str):linked.setdefault(rid,set()).add(row['opportunity_id'])
+ linked=linked_opportunities(history)
  reverse=[]
  for key,row in latest.items():
   if key[0]!='assertions':continue
-  oid=row.get('opportunity_id')
-  # Retiring is a judgment change (acknowledgement check below), but a retired record stays stale forever,
-  # so only active assertions pass inherited staleness back to their current direction.
-  if row.get('active') is not False and isinstance(oid,str) and ('opportunities',oid) in latest:
-   reverse.append((key,('opportunities',oid)))
-   if row.get('review_status')=='needs_review':stale.add(('opportunities',oid))
-  # Every direction this assertion was ever linked to must name its latest revision; timestamps can tie,
-  # and a moved or detached assertion must still reopen the direction it left.
+  # Every direction this assertion was ever linked to (current, moved away, detached) must name its
+  # latest revision, since timestamps can tie. Retiring is such a judgment change, but a retired record
+  # stays stale forever, so only active assertions pass their own or inherited staleness back.
   for former in linked.get(key[1],()):
    opp=latest.get(('opportunities',former))
-   if opp is not None and (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',former))
+   if opp is None:continue
+   if (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',former))
+   if row.get('active') is not False:
+    reverse.append((key,('opportunities',former)))
+    if row.get('review_status')=='needs_review':stale.add(('opportunities',former))
  # Any acknowledged assertion that has since moved on.
  for key,row in latest.items():
   if key[0]=='opportunities' and any(('assertions',aid) in latest and latest[('assertions',aid)]['rev']!=rev for aid,rev in acknowledged(row)):stale.add(key)

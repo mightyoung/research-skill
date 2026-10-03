@@ -174,6 +174,20 @@ class AssertionTests(unittest.TestCase):
   d['opportunities'].append(dict(copy.deepcopy(d['opportunities'][0]),rev=2))
   r=self.check(d);self.assertIn('experiments/r1: needs_review',r.stdout);self.assertNotIn('experiments/e1: needs_review',r.stdout)
 
+ def test_inherited_staleness_reaches_former_directions(self):
+  d=self.data(run(),state='supported',evidence=[SUP])
+  o2=dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a1','rev':2}]);d['opportunities'].append(o2)
+  d['assertions'].append(dict(d['assertions'][0],rev=2,opportunity_id='o2'))
+  d['opportunities'].insert(1,dict(copy.deepcopy(d['opportunities'][0]),rev=2,assertion_review=[{'id':'a1','rev':2}]))
+  r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+  d['experiments'].append(dict(copy.deepcopy(d['experiments'][1]),rev=2,review_status='needs_review'))
+  r=self.check(d);self.assertIn('opportunities/o1',r.stdout);self.assertIn('opportunities/o2',r.stdout)
+
+ def test_assertion_cannot_depend_on_a_former_direction(self):
+  d=self.data();o2=dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a1','rev':2}]);d['opportunities'].append(o2)
+  d['assertions'].append(dict(assertion(),rev=2,opportunity_id='o2',depends_on=[{'kind':'opportunities','id':'o1','rev':1}]))
+  r=self.check(d);self.assertIn('own opportunity',r.stdout)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)
