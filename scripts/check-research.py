@@ -191,6 +191,11 @@ def propagating(key,row):
  explicit={(d.get('kind'),d.get('id'),d.get('rev')) for d in row.get('depends_on',[]) if isinstance(d,dict)} if isinstance(row.get('depends_on'),list) else set()
  return [dep for dep in dependencies(key[0],row) if all(type(x) in (str,int) for x in dep) and (dep!=plan_link or dep in explicit)]
 
+def acknowledged(opportunity):
+ """Assertion revisions an opportunity decided on; malformed entries are reported by the V2 validator."""
+ value=opportunity.get('assertion_review')
+ return {(a['id'],a['rev']) for a in value if isinstance(a,dict) and isinstance(a.get('id'),str) and type(a.get('rev'))==int} if isinstance(value,list) else set()
+
 def own_opportunity_pins(history,latest):
  """Assertions whose pinned chain (exact revisions) reaches their own opportunity: with the reverse link that is a stale cycle."""
  bad=[]
@@ -234,8 +239,10 @@ def find_stale(latest,extra_stale):
   # so only active assertions pass inherited staleness back.
   if row.get('active') is not False:reverse.append((key,('opportunities',oid)))
   # The direction must name the exact assertion revision it decided on; timestamps can tie.
-  acked={(a.get('id'),a.get('rev')) for a in opp.get('assertion_review',[]) if isinstance(a,dict)} if isinstance(opp.get('assertion_review'),list) else set()
-  if row.get('active') is not False and row.get('review_status')=='needs_review' or (key[1],row['rev']) not in acked:stale.add(('opportunities',oid))
+  if row.get('active') is not False and row.get('review_status')=='needs_review' or (key[1],row['rev']) not in acknowledged(opp):stale.add(('opportunities',oid))
+ # Any acknowledged assertion that has since moved on, including one detached or moved elsewhere.
+ for key,row in latest.items():
+  if key[0]=='opportunities' and any(('assertions',aid) in latest and latest[('assertions',aid)]['rev']!=rev for aid,rev in acknowledged(row)):stale.add(key)
  # Propagate staleness to everything pinned to a moved or stale record.
  changed=True
  while changed:

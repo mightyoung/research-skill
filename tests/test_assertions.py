@@ -146,6 +146,21 @@ class AssertionTests(unittest.TestCase):
   self.acknowledge(d,2)
   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
 
+ def test_detached_or_moved_assertion_reopens_previous_direction(self):
+  for change in ({'opportunity_id':None},{'opportunity_id':'o2'}):
+   d=self.data();o2=dict(copy.deepcopy(d['opportunities'][0]),id='o2',assertion_review=[{'id':'a1','rev':2}]);d['opportunities'].append(o2)
+   moved=dict(assertion(),rev=2,assertion_state='withdrawn',review_note='scope moved');moved.update(change)
+   if moved['opportunity_id'] is None:del moved['opportunity_id']
+   d['assertions'].append(moved)
+   r=self.check(d);self.assertIn('opportunities/o1',r.stdout,change);self.assertNotIn('opportunities/o2',r.stdout)
+   d['opportunities'].insert(1,dict(copy.deepcopy(d['opportunities'][0]),rev=2,assertion_review=[]))
+   r=self.check(d);self.assertEqual(r.returncode,0,r.stdout)
+
+ def test_malformed_acknowledgement_reported_not_crashing(self):
+  for value in ([{'id':['a1'],'rev':1}],[{'id':'a1','rev':{'n':1}}]):
+   d=self.data();d['opportunities'][0]['assertion_review']=value;r=self.check(d)
+   self.assertNotEqual(r.returncode,0);self.assertIn('assertion_review',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
+
  def test_init_creates_assertions_journal(self):
   target=self.project/'new'
   subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),str(target)],check=True,capture_output=True)
