@@ -109,7 +109,9 @@ class V2Tests(unittest.TestCase):
   # A body-read finding that something was not reported is not an unread work.
   r=self.check(opp(depth='full_text',unknown=['该近邻正文未报告训练成本']),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
   # Domains may study unread content itself; only reading-context admissions count.
-  for domain in (['whether unread messages alter response behavior'],['未读消息是否影响用户行为'],['users who have not read the notice']):
+  for domain in (['whether unread messages alter response behavior'],['未读消息是否影响用户行为'],['users who have not read the notice'],
+                 ['Does the paper measure whether unread messages alter response behavior?'],
+                 ['The paper was read; whether unread messages alter response behavior remains unknown'],['论文研究未读消息的提醒效果']):
    r=self.check(opp(depth='full_text',unknown=domain),'--strict-v2');self.assertEqual(r.returncode,0,(domain,r.stdout))
  def test_negative_counts_and_time_bounds(self):
   for field,value in [('returned_count',-1),('total_hits',1),('time_range',{'start':'2026-10-02','end':'2026-10-01'})]:

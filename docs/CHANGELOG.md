@@ -6,7 +6,7 @@ README 只保留当前用法；各版本的改动说明与验证记录按原文�
 
 起因：v6.6 不点名对照运行里，唯一 continue 的候选列出了三篇已读正文的近邻、通过了近邻正文门槛，但最可能覆盖它的工作（2025 视频入库配置论文）只以"未读"文字写在 `critical_unknown` 和 `change_decision_if`，没有登记为论文，门槛被绕过。
 
-`critical_unknown` 条目可写成 `{paper:{id,rev},gap}`，钉住的论文参与外键与复核传播；continue/revise/ready 的当前快照中这些论文须读到正文，否则报错。文字条目或 `change_decision_if` 承认"未读"某项工作（unread、not read、未读、正文未读等）时默认提示、`--strict-v2` 报错。文字检查是关键词启发式，只能拦下诚实的写法，挡不住刻意改写；它的作用是把结构化登记变成最省力的路径。park/abandon 不受限，只检查当前有效快照。153 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过。
+`critical_unknown` 条目可写成 `{paper:{id,rev},gap}`，钉住的论文参与外键与复核传播；continue/revise/ready 的当前快照中这些论文须读到正文，否则报错。文字条目或 `change_decision_if` 承认某篇文献未读时默认提示、`--strict-v2` 报错：未读字样必须紧挨着文献词（英文 `unread … paper` 相隔不超过 3 个词、`paper … not read` 不超过 5 个词；中文"专利正文未读""未读的论文"这类最多隔 1 个字），这样研究对象本身就是"未读消息"之类的领域用语不会被误判。文字检查是启发式，只能拦下诚实的写法，挡不住刻意改写，也会漏掉只带"方法"等通用词的写法（如"Chameleon 未读的在线适应方法"）；它的作用是把结构化登记变成最省力的路径。park/abandon 不受限，只检查当前有效快照。153 项离线测试通过，三个 examples/v2-case 在 `--strict-v2` 下通过。
 
 ## V6.6 发现产出与近邻正文门槛
 

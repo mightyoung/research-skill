@@ -309,11 +309,16 @@ def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
  if not neighbors:
   (fail if strict else notes.append)('continue/revise/ready requires decisive_neighbors read in the body (targeted_body/full_text)')
 
-# Prose admitting an unread publication: an unread phrase plus a reading-context word in the same item.
+# Prose admitting an unread publication: the unread phrase must sit next to the publication it describes.
 # Heuristic only: catches honest wording, not deliberate rephrasing; domains may study unread content itself.
-UNREAD=re.compile(r'\bunread\b|\bnot (?:yet )?(?:been )?(?:body[- ])?read\b|未读|没读|未精读|未打开',re.I)
-READ_CONTEXT=re.compile(r'\b(?:paper|article|preprint|patent|publication|section|appendix|claims?|body|full[- ]text)s?\b|论文|文献|正文|全文|专利|章节|方法节|实验节|附录|权利要求|预印本',re.I)
-def admits_unread(value):return bool(UNREAD.search(value) and READ_CONTEXT.search(value))
+PUB_EN=r'(?:paper|article|preprint|patent|publication|section|appendix|claims?|body|full[- ]text)s?'
+PUB_ZH='论文|文献|正文|全文|专利|章节|方法节|实验节|附录|权利要求|预印本'
+UNREAD_ZH='未读|没读|未精读|未打开'
+UNREAD_NEAR=re.compile(
+ rf'\bunread\b(?:\W+\w+){{0,3}}?\W+{PUB_EN}\b'
+ rf'|\b{PUB_EN}\b(?:\W+\w+){{0,5}}?\W+(?:not|never)\W+(?:yet\W+)?(?:been\W+)?(?:body\W+)?read\b'
+ rf'|(?:{PUB_ZH}).?(?:{UNREAD_ZH})|(?:{UNREAD_ZH}).?(?:{PUB_ZH})',re.I)
+def admits_unread(value):return bool(UNREAD_NEAR.search(value))
 def unknowns(value,fail):
  # critical_unknown: nonempty list of strings or {paper:{id,rev},gap} pinning an unread/partly read work.
  if not isinstance(value,list) or not value:fail('critical_unknown list required');return
