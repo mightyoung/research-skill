@@ -52,6 +52,13 @@ class AssertionTests(unittest.TestCase):
    role='supports' if decisive['actual']['result']=='supporting' else 'refutes'
    r=self.check(self.data(decisive,state='inconclusive',evidence=[dict(SUP,role=role)]));self.assertNotEqual(r.returncode,0,decisive);self.assertIn('inconclusive',r.stdout)
 
+ def test_untested_cannot_hold_decisive_evidence(self):
+  claim={'kind':'claims','id':'c1','rev':1,'role':'supports'}
+  for runs,ev in [((run('supporting'),),[SUP]),((run('refuting'),),[dict(SUP,role='refutes')]),((),[claim])]:
+   r=self.check(self.data(*runs,evidence=ev));self.assertNotEqual(r.returncode,0,ev);self.assertIn('untested',r.stdout)
+  r=self.check(self.data(run('inconclusive',False),evidence=[dict(SUP,role='context')]));self.assertEqual(r.returncode,0,r.stdout)
+  r=self.check(self.data(evidence=[dict(claim,role='context')]));self.assertEqual(r.returncode,0,r.stdout)
+
  def test_withdrawn_keeps_history_with_reason(self):
   r=self.check(self.data(state='withdrawn'));self.assertNotEqual(r.returncode,0);self.assertIn('withdrawn',r.stdout)
   r=self.check(self.data(state='withdrawn',review_note='nearest neighbour already handles rework'));self.assertEqual(r.returncode,0,r.stdout)

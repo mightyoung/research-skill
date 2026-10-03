@@ -16,6 +16,7 @@
    - `supported`：至少一次具辨别力、完成且支持的运行；纯文献主张可以用一条全文阅读的论文原述（paper_statement），但要在 does_not_support 里写清没有实测。
    - `refuted`：至少一次具辨别力、完成且反驳的运行；同时写 failures（hypothesis_refuted）及重开条件。
    - `inconclusive`：跑了但分不开；写 failures（non_discriminating），说明缺的精度或对照。
+   - `untested`：还没有能定状态的证据。一旦引用了足以判定支持或反驳的证据，就必须改状态；只作背景的证据标 `context`。
    - `withdrawn`：不是被实验推翻，而是近邻已覆盖、问题重构等原因不再主张；必须写 review_note。旧 rev 保留。
    - `does_not_support` 每次重写：这次结果仍然不能支持的更强说法。
 3. **再改方向。** opportunity 追加 rev：decision 在 continue / revise / park / abandon 中选，并更新 critical_unknown 与 change_decision_if。一次阴性不否定整个方向，除非它正好测的是方向成立的必要条件。
