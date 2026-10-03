@@ -248,7 +248,8 @@ def validate_record(project,kind,row,history,current,strict=False):
   if not strings(row.get('does_not_support')):fail('does_not_support must state stronger conclusions excluded')
   linked=[]
   for ref in ref_list('evidence'):
-   if not isinstance(ref,dict):continue
+   # ref_list already reported malformed entries; skip them before any history lookup.
+   if not isinstance(ref,dict) or not isinstance(ref.get('kind'),str) or not isinstance(ref.get('id'),str) or type(ref.get('rev'))!=int:continue
    role=ref.get('role')
    if role not in ('supports','refutes','context'):fail('evidence role must be supports/refutes/context');continue
    target=history.get((ref.get('kind'),ref.get('id'),ref.get('rev')),{})

@@ -59,6 +59,11 @@ class AssertionTests(unittest.TestCase):
   r=self.check(self.data(run('inconclusive',False),evidence=[dict(SUP,role='context')]));self.assertEqual(r.returncode,0,r.stdout)
   r=self.check(self.data(evidence=[dict(claim,role='context')]));self.assertEqual(r.returncode,0,r.stdout)
 
+ def test_malformed_evidence_reported_not_crashing(self):
+  for field,value in [('id',['r1']),('kind',{'x':1}),('rev',[1])]:
+   r=self.check(self.data(run(),evidence=[dict(SUP,**{field:value})]))
+   self.assertNotEqual(r.returncode,0);self.assertIn('evidence',r.stdout,field);self.assertNotIn('could not complete',r.stdout+r.stderr,field)
+
  def test_withdrawn_keeps_history_with_reason(self):
   r=self.check(self.data(state='withdrawn'));self.assertNotEqual(r.returncode,0);self.assertIn('withdrawn',r.stdout)
   r=self.check(self.data(state='withdrawn',review_note='nearest neighbour already handles rework'));self.assertEqual(r.returncode,0,r.stdout)
