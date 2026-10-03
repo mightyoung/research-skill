@@ -90,6 +90,9 @@ class V2Tests(unittest.TestCase):
    r=self.check(opp(decision));self.assertNotEqual(r.returncode,0);self.assertIn('critical unknown paper p2-v1 read only at abstract',r.stdout)
   r=self.check(opp('park'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
   r=self.check(opp(depth='targeted_body'),'--strict-v2');self.assertEqual(r.returncode,0,r.stdout)
+  # The gap of a structured item is prose too: a body-read pin cannot hide another unread work.
+  d=opp(depth='full_text',unknown=[{'paper':{'id':'p2-v1','rev':1},'gap':'the follow-up paper was not read'}])
+  r=self.check(d,'--strict-v2');self.assertNotEqual(r.returncode,0);self.assertIn('names an unread work in prose',r.stdout)
   for prose in (['the 2025 ingestion paper was not body-read'],['相关专利正文未读'],['ok'],['I have not read the paper'],['we have not yet read the patent claims'],["I haven't read the paper"],['The paper hasn’t been read']):
    d=opp(unknown=prose)
    if prose==['ok']:d['opportunities'][0]['change_decision_if']='The unread 2025 paper already scores revisions'

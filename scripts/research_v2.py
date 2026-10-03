@@ -307,7 +307,7 @@ def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
   ref=item.get('paper') if isinstance(item,dict) else None
   paper=pinned_paper(history,ref)
   if paper and paper.get('reading_depth') not in BODY_READ:fail(f"critical unknown paper {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
- prose=[x for x in [*items,row.get('change_decision_if')] if isinstance(x,str)]
+ prose=[x for x in [*items,*(i.get('gap') for i in items if isinstance(i,dict)),row.get('change_decision_if')] if isinstance(x,str)]
  if any(admits_unread(x) for x in prose):
   (fail if strict else notes.append)('critical_unknown/change_decision_if names an unread work in prose; register it as a paper and cite it as {paper,gap} or in decisive_neighbors, read its body, or park')
  if not neighbors:
