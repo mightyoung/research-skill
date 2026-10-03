@@ -64,7 +64,7 @@ claim 示例：
 
 # Schema v2：显式扩展与兼容
 
-每个新对象用 schema_version=2；无该字段视为 v1。基础四日志仍必需，新 searches/tensions/experiments/failures/handoffs 日志在旧项目可缺失，新初始化会补建空文件。默认校验 v1 并逐项输出 legacy 兼容提示（不提供 V2 保证）；--strict-v2 要求当前活跃快照已显式迁移。历史 v1 行仍保留，不重写。迁移是人工审查后追加下一 rev 的完整 V2 快照，未知保留，必要时把 ready 降为 candidate/blocked。迁移到 V2 后不能降回 V1 绕过契约；不自动写 verified 或补真。ID、work identity 与 version 约定不变。
+每个新对象用 schema_version=2；无该字段视为 v1。基础四日志仍必需，新 searches/tensions/experiments/failures/handoffs/assertions 日志在旧项目可缺失，新初始化会补建空文件。默认校验 v1 并逐项输出 legacy 兼容提示（不提供 V2 保证）；--strict-v2 要求当前活跃快照已显式迁移。历史 v1 行仍保留，不重写。迁移是人工审查后追加下一 rev 的完整 V2 快照，未知保留，必要时把 ready 降为 candidate/blocked。迁移到 V2 后不能降回 V1 绕过契约；不自动写 verified 或补真。ID、work identity 与 version 约定不变。
 
 所有日志共用 id/rev/updated_at、可选 depends_on、active/review_note；自动复核仍追加 review_status=needs_review（机会用 status）。额外日志使用当前快照及固定修订外键，可退役并保持对活跃依赖的影响；结构错误不修改任何日志。冲突关系是语义关联，不强制单向无环，但其更新会影响依赖；证据因果 provenance 仍不得成环。
 
@@ -80,6 +80,7 @@ claim 示例：
 | experiments（计划批准） | 可选 approval:{by,at,scope}，仅这三个键；人工声明，脚本不认证审批人。实测引用的计划缺 approval 时提示，--strict-v2 当前快照报错；approval.at 晚于 executed_at 报错 |
 | experiments（实测） | phase=executed；plan_ref:{id,rev}；actual:{executed_at,measured_values:[有限数字],result:supporting/refuting/inconclusive,discriminating:boolean,reason,budget_spent,execution_state:completed/technical_failure,provenance?,overrun_approval?}；budget_spent 超出计划 budget.limit 须 overrun_approval:{by,at,scope}，否则提示/strict 报错；provenance:{code:{repo,commit(7–64位hex)},command,environment:{path,sha256},outputs:[{path,sha256}]≥1}，completed 缺失时提示不可追溯、--strict-v2 当前快照必需；commit 只是声明，脚本不运行 git，绑定文件改变使该实验及依赖待复核 |
 | failures | failure_type:technical/non_discriminating/hypothesis_refuted/resource_infeasible；cause；conditions:{data,scale,evaluation,method_version}；evidence:[{kind,id,rev}]；generalization_scope；reopen_conditions |
+| assertions | 我们自己的研究主张，不挂论文。statement；assertion_state:untested/supported/refuted/inconclusive/withdrawn；does_not_support 非空列表；可选 opportunity:{id,rev}；evidence:[{kind,id,rev,role:supports/refutes/context}]。role 与所引 executed 运行的 result 矛盾即报错；supported 需一次 discriminating、completed、supporting 的运行或一条 V2 全文 paper_statement claim；refuted 需同类 refuting 运行；inconclusive 需至少一次 executed 运行；withdrawn 需 review_note。证据移动或待复核时随依赖传递待复核。回流流程见 [result feedback](result-feedback.md) |
 | handoffs | step；step_state:planned/in_progress/completed/needs_review；inputs/outputs:[{path,sha256}]；pending_questions；invalidation_reasons；completed 必须有输入和产物绑定，摘要自报完成不可替代 |
 
 计数指该来源返回的记录，非去重后独立作品数；独立作品仍按 work_id。exhaustive 只允许有总数与分页能力、已完成有界查询且计数一致，不代表整个领域穷尽。access_failed/unavailable/incomplete 必须 coverage_claim=unknown。预算上限与耗尽状态如实记录，不可标成搜索已解决。
