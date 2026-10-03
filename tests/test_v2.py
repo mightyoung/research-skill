@@ -104,6 +104,12 @@ class V2Tests(unittest.TestCase):
   for bad in (None,3,'text'):
    d=opp();d['opportunities'][0]['critical_unknown']=bad
    r=self.check(d);self.assertNotEqual(r.returncode,0,bad);self.assertIn('critical_unknown list required',r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
+  # Unhashable ids inside structured refs must be schema errors, not a crash during lookup.
+  for field,value,message in (('critical_unknown',[{'paper':{'id':[],'rev':1},'gap':'x'}],'critical_unknown'),
+                              ('decisive_neighbors',[{'id':[],'rev':1}],'decisive_neighbors'),
+                              ('decisive_neighbors',[{'id':'p1-v1','rev':[1]}],'decisive_neighbors')):
+   d=opp();d['opportunities'][0][field]=value
+   r=self.check(d);self.assertNotEqual(r.returncode,0,value);self.assertIn(message,r.stdout);self.assertNotIn('could not complete',r.stdout+r.stderr)
   d=opp();d['opportunities'][0]['change_decision_if']=None
   r=self.check(d);self.assertNotIn('could not complete',r.stdout+r.stderr);self.assertIn('change_decision_if',r.stdout)
   # A body-read finding that something was not reported is not an unread work.

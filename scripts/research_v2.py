@@ -290,18 +290,22 @@ def approval_gate(row,plan,actual,current,strict,fail,notes):
  if number(limit) and number(actual.get('budget_spent')) and actual['budget_spent']>limit and 'overrun_approval' not in actual:soft(f'budget overrun ({actual["budget_spent"]}>{limit}) without overrun_approval')
 
 BODY_READ=('targeted_body','full_text')
+def pinned_paper(history,ref):
+ # Malformed refs are reported by the schema checks; never let them crash the history lookup.
+ if not isinstance(ref,dict) or not isinstance(ref.get('id'),str) or type(ref.get('rev'))!=int:return None
+ return history.get(('papers',ref['id'],ref['rev']))
 def neighbor_gate(row,history,current,strict,ref_list,fail,notes):
  # An actionable decision must rest on decisive neighbors read in the body, not on abstracts.
  neighbors=ref_list('decisive_neighbors','papers') if 'decisive_neighbors' in row else []
  # Historical revisions are not re-gated: append-only repair (body read + new rev) must restore PASS.
  if not current or row.get('active') is False or row.get('decision') not in ('continue','revise') and row.get('status')!='ready':return
  for ref in neighbors:
-  paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
+  paper=pinned_paper(history,ref)
   if paper and paper.get('reading_depth') not in BODY_READ:fail(f"decisive neighbor {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
  items=row.get('critical_unknown') if isinstance(row.get('critical_unknown'),list) else []
  for item in items:
   ref=item.get('paper') if isinstance(item,dict) else None
-  paper=history.get(('papers',ref.get('id'),ref.get('rev'))) if isinstance(ref,dict) else None
+  paper=pinned_paper(history,ref)
   if paper and paper.get('reading_depth') not in BODY_READ:fail(f"critical unknown paper {ref['id']} read only at {paper.get('reading_depth')}; read its body or park the opportunity")
  prose=[x for x in [*items,row.get('change_decision_if')] if isinstance(x,str)]
  if any(admits_unread(x) for x in prose):
